@@ -244,8 +244,14 @@ uf-research-metrics-platform/
 
 ## Demo
 
-<!-- Demo GIF placeholder - Add demo.gif to assets/ folder when available -->
-<!-- ![Platform Demo](./assets/demo.gif) -->
+![Platform Demo](./docs/assets/demo.gif)
+
+*Interactive dashboard showing grant metrics, filtering capabilities, and faculty leaderboard rankings.*
+
+**What reviewers should try:**
+- **Dashboard**: View KPI cards and status breakdown visualization
+- **Grants page**: Filter by status and department, then click a grant row to see the detail drawer
+- **Leaderboard**: Switch department filter to see ranked faculty by awarded amount
 
 ## Documentation
 

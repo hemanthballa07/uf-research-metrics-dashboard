@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 
 interface SponsorData {
@@ -68,7 +68,7 @@ export function SponsorBarChart({ data }: SponsorBarChartProps) {
           />
           <Bar dataKey="amount" radius={[0, 4, 4, 0]} animationDuration={800}>
             {chartData.map((entry, index) => (
-              <Bar key={`cell-${index}`} fill={entry.fill} />
+              <Cell key={`cell-${index}`} fill={entry.fill} />
             ))}
           </Bar>
         </BarChart>

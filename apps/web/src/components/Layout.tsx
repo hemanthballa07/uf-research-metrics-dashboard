@@ -52,6 +52,16 @@ export function Layout({ children }: LayoutProps) {
             >
               Leaderboard
             </Link>
+            <Link
+              to="/insights"
+              style={{
+                color: isActive('/insights') ? '#4a9eff' : '#ccc',
+                textDecoration: 'none',
+                fontWeight: isActive('/insights') ? '600' : '400',
+              }}
+            >
+              Insights
+            </Link>
           </nav>
         </div>
       </header>

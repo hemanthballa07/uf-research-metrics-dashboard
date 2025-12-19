@@ -7,6 +7,11 @@ export function createApp(): express.Application {
   const app = express();
 
   // Middleware
+  // Accept text/plain for CSV ingestion endpoint
+  app.use(
+    '/api/ingest',
+    express.text({ type: 'text/plain', limit: '10mb' })
+  );
   app.use(express.json());
   app.use(requestLogger);
 

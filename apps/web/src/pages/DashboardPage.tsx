@@ -3,6 +3,9 @@ import { api, ApiClientError, NetworkError } from '../lib/apiClient';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 import { SkeletonCard } from '../components/Skeleton';
+import { StatusDonutChart } from '../components/charts/StatusDonutChart';
+import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
+import { SponsorTypeBarChart } from '../components/charts/SponsorTypeBarChart';
 
 interface MetricsSummary {
   totalSubmissions: number;
@@ -15,6 +18,29 @@ interface StatusBreakdown {
   status: string;
   count: number;
 }
+
+// Temporary mock data for charts (will be replaced with API calls in next slice)
+const mockTimeSeriesData = [
+  { month: '2024-01', submissions: 8, awards: 3, awardedAmount: 450000 },
+  { month: '2024-02', submissions: 12, awards: 5, awardedAmount: 620000 },
+  { month: '2024-03', submissions: 10, awards: 4, awardedAmount: 580000 },
+  { month: '2024-04', submissions: 15, awards: 6, awardedAmount: 750000 },
+  { month: '2024-05', submissions: 11, awards: 5, awardedAmount: 690000 },
+  { month: '2024-06', submissions: 9, awards: 4, awardedAmount: 520000 },
+  { month: '2024-07', submissions: 13, awards: 7, awardedAmount: 810000 },
+  { month: '2024-08', submissions: 14, awards: 6, awardedAmount: 780000 },
+  { month: '2024-09', submissions: 10, awards: 5, awardedAmount: 640000 },
+  { month: '2024-10', submissions: 12, awards: 6, awardedAmount: 720000 },
+  { month: '2024-11', submissions: 11, awards: 5, awardedAmount: 680000 },
+  { month: '2024-12', submissions: 9, awards: 4, awardedAmount: 550000 },
+];
+
+const mockSponsorTypeData = [
+  { sponsorType: 'Federal', awardedAmount: 2500000, count: 35 },
+  { sponsorType: 'State', awardedAmount: 800000, count: 12 },
+  { sponsorType: 'Foundation', awardedAmount: 600000, count: 8 },
+  { sponsorType: 'Corporate', awardedAmount: 400000, count: 5 },
+];
 
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
@@ -354,6 +380,105 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Visual Insights Section */}
+      <div
+        style={{
+          marginTop: '2rem',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            marginBottom: '1.5rem',
+          }}
+        >
+          Visual Insights
+        </h2>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+            gap: '1.5rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          {/* Status Distribution Donut Chart */}
+          {statusBreakdown.length > 0 && (
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: '1.5rem',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  color: '#333',
+                  marginBottom: '1rem',
+                }}
+              >
+                Grant Status Distribution
+              </h3>
+              <StatusDonutChart data={statusBreakdown} />
+            </div>
+          )}
+
+          {/* Time Series Chart */}
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#333',
+                marginBottom: '1rem',
+              }}
+            >
+              Submissions vs Awards Over Time
+            </h3>
+            <TimeSeriesChart data={mockTimeSeriesData} />
+          </div>
+        </div>
+
+        {/* Sponsor Type Bar Chart */}
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '1.5rem',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            border: '1px solid #e0e0e0',
+            marginTop: '1.5rem',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: '1rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Awarded Amount by Sponsor Type
+          </h3>
+          <SponsorTypeBarChart data={mockSponsorTypeData} />
+        </div>
+      </div>
     </div>
   );
 }

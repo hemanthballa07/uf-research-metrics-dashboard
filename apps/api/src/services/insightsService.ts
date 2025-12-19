@@ -125,27 +125,33 @@ export async function getInsightsData(params: {
     const avgAwardSize = awardCount > 0 ? totalAwardedAmount / awardCount : 0;
 
     // Median time-to-award
-    let medianQuery = `
-      SELECT 
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 
-          EXTRACT(EPOCH FROM ("awardedAt" - "submittedAt")) / 86400
-        ) AS median_days
-      FROM grants
-      WHERE status = 'awarded'
-        AND "submittedAt" IS NOT NULL
-        AND "awardedAt" IS NOT NULL
-        AND "awardedAt" >= $1
-    `;
-    const medianParams: unknown[] = [startDate];
+    let medianResult: Array<{ median_days: number | null }>;
     if (departmentId) {
-      medianQuery += ` AND "departmentId" = $${medianParams.length + 1}`;
-      medianParams.push(departmentId);
+      medianResult = await prisma.$queryRaw<Array<{ median_days: number | null }>>`
+        SELECT 
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 
+            EXTRACT(EPOCH FROM ("awardedAt" - "submittedAt")) / 86400
+          ) AS median_days
+        FROM grants
+        WHERE status = 'awarded'
+          AND "submittedAt" IS NOT NULL
+          AND "awardedAt" IS NOT NULL
+          AND "awardedAt" >= ${startDate}
+          AND "departmentId" = ${departmentId}
+      `;
+    } else {
+      medianResult = await prisma.$queryRaw<Array<{ median_days: number | null }>>`
+        SELECT 
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 
+            EXTRACT(EPOCH FROM ("awardedAt" - "submittedAt")) / 86400
+          ) AS median_days
+        FROM grants
+        WHERE status = 'awarded'
+          AND "submittedAt" IS NOT NULL
+          AND "awardedAt" IS NOT NULL
+          AND "awardedAt" >= ${startDate}
+      `;
     }
-
-    const medianResult = await prisma.$queryRawUnsafe<Array<{ median_days: number | null }>>(
-      medianQuery,
-      ...medianParams
-    );
 
     const medianTimeToAward =
       medianResult[0]?.median_days !== null && medianResult[0]?.median_days !== undefined
@@ -162,65 +168,105 @@ export async function getInsightsData(params: {
     };
 
     // 2. Time Series with status counts
-    // Get timeseries - build query with proper parameters
-    let timeseriesQuery = `
-      WITH month_series AS (
-        SELECT 
-          TO_CHAR(month_start, 'YYYY-MM') AS month
-        FROM generate_series(
-          DATE_TRUNC('month', $1::timestamp),
-          DATE_TRUNC('month', $2::timestamp),
-          '1 month'::interval
-        ) AS month_start
-      ),
-      submissions_by_month AS (
-        SELECT 
-          TO_CHAR(DATE_TRUNC('month', "submittedAt"), 'YYYY-MM') AS month,
-          COUNT(*)::bigint AS count
-        FROM grants
-        WHERE "submittedAt" >= $1
-    `;
-    const timeseriesParams: unknown[] = [startDate, now];
-    if (departmentId) {
-      timeseriesQuery += ` AND "departmentId" = $${timeseriesParams.length + 1}`;
-      timeseriesParams.push(departmentId);
-    }
-    timeseriesQuery += `
-        GROUP BY DATE_TRUNC('month', "submittedAt")
-      ),
-      awards_by_month AS (
-        SELECT 
-          TO_CHAR(DATE_TRUNC('month', "awardedAt"), 'YYYY-MM') AS month,
-          COUNT(*)::bigint AS count,
-          SUM(amount)::numeric AS total_amount
-        FROM grants
-        WHERE status = 'awarded'
-          AND "awardedAt" >= $1
-    `;
-    if (departmentId) {
-      timeseriesQuery += ` AND "departmentId" = $${timeseriesParams.length + 1}`;
-      timeseriesParams.push(departmentId);
-    }
-    timeseriesQuery += `
-        GROUP BY DATE_TRUNC('month', "awardedAt")
-      )
-      SELECT 
-        ms.month,
-        COALESCE(sbm.count, 0)::bigint AS submissions,
-        COALESCE(abm.count, 0)::bigint AS awards,
-        COALESCE(abm.total_amount, 0)::numeric AS awarded_amount
-      FROM month_series ms
-      LEFT JOIN submissions_by_month sbm ON ms.month = sbm.month
-      LEFT JOIN awards_by_month abm ON ms.month = abm.month
-      ORDER BY ms.month ASC
-    `;
-
-    const timeseriesResults = await prisma.$queryRawUnsafe<Array<{
+    // Get timeseries - use conditional query based on filters
+    let timeseriesResults: Array<{
       month: string;
       submissions: bigint;
       awards: bigint;
       awarded_amount: number | null;
-    }>>(timeseriesQuery, ...timeseriesParams);
+    }>;
+
+    if (departmentId) {
+      timeseriesResults = await prisma.$queryRaw<Array<{
+        month: string;
+        submissions: bigint;
+        awards: bigint;
+        awarded_amount: number | null;
+      }>>`
+        WITH month_series AS (
+          SELECT 
+            TO_CHAR(month_start, 'YYYY-MM') AS month
+          FROM generate_series(
+            DATE_TRUNC('month', ${startDate}::timestamp),
+            DATE_TRUNC('month', ${now}::timestamp),
+            '1 month'::interval
+          ) AS month_start
+        ),
+        submissions_by_month AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('month', "submittedAt"), 'YYYY-MM') AS month,
+            COUNT(*)::bigint AS count
+          FROM grants
+          WHERE "submittedAt" >= ${startDate}
+            AND "departmentId" = ${departmentId}
+          GROUP BY DATE_TRUNC('month', "submittedAt")
+        ),
+        awards_by_month AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('month', "awardedAt"), 'YYYY-MM') AS month,
+            COUNT(*)::bigint AS count,
+            SUM(amount)::numeric AS total_amount
+          FROM grants
+          WHERE status = 'awarded'
+            AND "awardedAt" >= ${startDate}
+            AND "departmentId" = ${departmentId}
+          GROUP BY DATE_TRUNC('month', "awardedAt")
+        )
+        SELECT 
+          ms.month,
+          COALESCE(sbm.count, 0)::bigint AS submissions,
+          COALESCE(abm.count, 0)::bigint AS awards,
+          COALESCE(abm.total_amount, 0)::numeric AS awarded_amount
+        FROM month_series ms
+        LEFT JOIN submissions_by_month sbm ON ms.month = sbm.month
+        LEFT JOIN awards_by_month abm ON ms.month = abm.month
+        ORDER BY ms.month ASC
+      `;
+    } else {
+      timeseriesResults = await prisma.$queryRaw<Array<{
+        month: string;
+        submissions: bigint;
+        awards: bigint;
+        awarded_amount: number | null;
+      }>>`
+        WITH month_series AS (
+          SELECT 
+            TO_CHAR(month_start, 'YYYY-MM') AS month
+          FROM generate_series(
+            DATE_TRUNC('month', ${startDate}::timestamp),
+            DATE_TRUNC('month', ${now}::timestamp),
+            '1 month'::interval
+          ) AS month_start
+        ),
+        submissions_by_month AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('month', "submittedAt"), 'YYYY-MM') AS month,
+            COUNT(*)::bigint AS count
+          FROM grants
+          WHERE "submittedAt" >= ${startDate}
+          GROUP BY DATE_TRUNC('month', "submittedAt")
+        ),
+        awards_by_month AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('month', "awardedAt"), 'YYYY-MM') AS month,
+            COUNT(*)::bigint AS count,
+            SUM(amount)::numeric AS total_amount
+          FROM grants
+          WHERE status = 'awarded'
+            AND "awardedAt" >= ${startDate}
+          GROUP BY DATE_TRUNC('month', "awardedAt")
+        )
+        SELECT 
+          ms.month,
+          COALESCE(sbm.count, 0)::bigint AS submissions,
+          COALESCE(abm.count, 0)::bigint AS awards,
+          COALESCE(abm.total_amount, 0)::numeric AS awarded_amount
+        FROM month_series ms
+        LEFT JOIN submissions_by_month sbm ON ms.month = sbm.month
+        LEFT JOIN awards_by_month abm ON ms.month = abm.month
+        ORDER BY ms.month ASC
+      `;
+    }
 
     // Get status counts by month separately
     const statusCountsByMonth = await prisma.grant.groupBy({
@@ -271,64 +317,104 @@ export async function getInsightsData(params: {
     dailyStartDate.setDate(dailyStartDate.getDate() - Math.min(365, months * 30));
 
     // Daily activity query
-    let dailyQuery = `
-      WITH date_series AS (
-        SELECT 
-          TO_CHAR(date_day, 'YYYY-MM-DD') AS date
-        FROM generate_series(
-          DATE_TRUNC('day', $1::timestamp),
-          DATE_TRUNC('day', $2::timestamp),
-          '1 day'::interval
-        ) AS date_day
-      ),
-      daily_submissions AS (
-        SELECT 
-          TO_CHAR(DATE_TRUNC('day', "submittedAt"), 'YYYY-MM-DD') AS date,
-          COUNT(*)::bigint AS count
-        FROM grants
-        WHERE "submittedAt" >= $1
-    `;
-    const dailyParams: unknown[] = [dailyStartDate, now];
-    if (departmentId) {
-      dailyQuery += ` AND "departmentId" = $${dailyParams.length + 1}`;
-      dailyParams.push(departmentId);
-    }
-    dailyQuery += `
-        GROUP BY DATE_TRUNC('day', "submittedAt")
-      ),
-      daily_awards AS (
-        SELECT 
-          TO_CHAR(DATE_TRUNC('day', "awardedAt"), 'YYYY-MM-DD') AS date,
-          COUNT(*)::bigint AS count,
-          SUM(amount)::numeric AS total_amount
-        FROM grants
-        WHERE status = 'awarded'
-          AND "awardedAt" >= $1
-    `;
-    if (departmentId) {
-      dailyQuery += ` AND "departmentId" = $${dailyParams.length + 1}`;
-      dailyParams.push(departmentId);
-    }
-    dailyQuery += `
-        GROUP BY DATE_TRUNC('day', "awardedAt")
-      )
-      SELECT 
-        ds.date,
-        COALESCE(dsub.count, 0)::bigint AS submissions,
-        COALESCE(da.count, 0)::bigint AS awards,
-        COALESCE(da.total_amount, 0)::numeric AS awarded_amount
-      FROM date_series ds
-      LEFT JOIN daily_submissions dsub ON ds.date = dsub.date
-      LEFT JOIN daily_awards da ON ds.date = da.date
-      ORDER BY ds.date ASC
-    `;
-
-    const dailyResults = await prisma.$queryRawUnsafe<Array<{
+    let dailyResults: Array<{
       date: string;
       submissions: bigint;
       awards: bigint;
       awarded_amount: number | null;
-    }>>(dailyQuery, ...dailyParams);
+    }>;
+
+    if (departmentId) {
+      dailyResults = await prisma.$queryRaw<Array<{
+        date: string;
+        submissions: bigint;
+        awards: bigint;
+        awarded_amount: number | null;
+      }>>`
+        WITH date_series AS (
+          SELECT 
+            TO_CHAR(date_day, 'YYYY-MM-DD') AS date
+          FROM generate_series(
+            DATE_TRUNC('day', ${dailyStartDate}::timestamp),
+            DATE_TRUNC('day', ${now}::timestamp),
+            '1 day'::interval
+          ) AS date_day
+        ),
+        daily_submissions AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('day', "submittedAt"), 'YYYY-MM-DD') AS date,
+            COUNT(*)::bigint AS count
+          FROM grants
+          WHERE "submittedAt" >= ${dailyStartDate}
+            AND "departmentId" = ${departmentId}
+          GROUP BY DATE_TRUNC('day', "submittedAt")
+        ),
+        daily_awards AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('day', "awardedAt"), 'YYYY-MM-DD') AS date,
+            COUNT(*)::bigint AS count,
+            SUM(amount)::numeric AS total_amount
+          FROM grants
+          WHERE status = 'awarded'
+            AND "awardedAt" >= ${dailyStartDate}
+            AND "departmentId" = ${departmentId}
+          GROUP BY DATE_TRUNC('day', "awardedAt")
+        )
+        SELECT 
+          ds.date,
+          COALESCE(dsub.count, 0)::bigint AS submissions,
+          COALESCE(da.count, 0)::bigint AS awards,
+          COALESCE(da.total_amount, 0)::numeric AS awarded_amount
+        FROM date_series ds
+        LEFT JOIN daily_submissions dsub ON ds.date = dsub.date
+        LEFT JOIN daily_awards da ON ds.date = da.date
+        ORDER BY ds.date ASC
+      `;
+    } else {
+      dailyResults = await prisma.$queryRaw<Array<{
+        date: string;
+        submissions: bigint;
+        awards: bigint;
+        awarded_amount: number | null;
+      }>>`
+        WITH date_series AS (
+          SELECT 
+            TO_CHAR(date_day, 'YYYY-MM-DD') AS date
+          FROM generate_series(
+            DATE_TRUNC('day', ${dailyStartDate}::timestamp),
+            DATE_TRUNC('day', ${now}::timestamp),
+            '1 day'::interval
+          ) AS date_day
+        ),
+        daily_submissions AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('day', "submittedAt"), 'YYYY-MM-DD') AS date,
+            COUNT(*)::bigint AS count
+          FROM grants
+          WHERE "submittedAt" >= ${dailyStartDate}
+          GROUP BY DATE_TRUNC('day', "submittedAt")
+        ),
+        daily_awards AS (
+          SELECT 
+            TO_CHAR(DATE_TRUNC('day', "awardedAt"), 'YYYY-MM-DD') AS date,
+            COUNT(*)::bigint AS count,
+            SUM(amount)::numeric AS total_amount
+          FROM grants
+          WHERE status = 'awarded'
+            AND "awardedAt" >= ${dailyStartDate}
+          GROUP BY DATE_TRUNC('day', "awardedAt")
+        )
+        SELECT 
+          ds.date,
+          COALESCE(dsub.count, 0)::bigint AS submissions,
+          COALESCE(da.count, 0)::bigint AS awards,
+          COALESCE(da.total_amount, 0)::numeric AS awarded_amount
+        FROM date_series ds
+        LEFT JOIN daily_submissions dsub ON ds.date = dsub.date
+        LEFT JOIN daily_awards da ON ds.date = da.date
+        ORDER BY ds.date ASC
+      `;
+    }
 
     const dailyActivity: DailyActivityPoint[] = dailyResults.map((row) => ({
       date: row.date,

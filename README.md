@@ -37,6 +37,7 @@ pnpm install
    cp .env.example .env
    # Edit .env with your PostgreSQL connection string
    # Update DATABASE_URL to match your local PostgreSQL instance
+   # See .env.example for detailed comments on each variable
    ```
 
 2. **Set up the database:**

@@ -211,9 +211,10 @@ pnpm --filter api exec prisma generate
    cp .env.example .env
    ```
 
-2. Edit `.env` with your values
+2. Edit `.env` with your values (see `.env.example` for detailed comments)
 
-3. For Docker, also check `.env.docker` or set environment variables
+3. For Docker, environment variables are auto-configured via docker-compose.yml
+   You can override defaults by setting them in your shell or `.env` file
 
 ## Performance Tuning
 

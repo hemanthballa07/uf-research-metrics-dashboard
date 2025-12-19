@@ -95,3 +95,10 @@ export const awardsBySponsorTypeQuerySchema = z.object({
   months: z.coerce.number().int().min(1).max(36).default(12),
 });
 
+export const insightsQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(36).default(12),
+  departmentId: z.coerce.number().int().positive().optional(),
+  sponsorType: z.string().optional(),
+  status: z.string().optional(), // Comma-separated list
+});
+

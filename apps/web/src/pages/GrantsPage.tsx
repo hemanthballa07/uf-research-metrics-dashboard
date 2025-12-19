@@ -468,7 +468,6 @@ export function GrantsPage() {
             ⚠️ {dateError}
           </div>
         )}
-        </div>
 
         {/* Export Buttons */}
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>

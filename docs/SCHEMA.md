@@ -175,3 +175,36 @@ Seed data includes:
 - 4 sponsors (NSF, NIH, Gates Foundation, State Research Council)
 - 6 sample grants
 
+## Data Invariants Enforced
+
+The database schema and application logic enforce the following data correctness guarantees:
+
+### Referential Integrity
+- **Foreign Key Constraints**: All foreign keys (`departmentId`, `piId`, `sponsorId`) use `onDelete: Restrict`, preventing orphaned records
+- **Cascade Protection**: Deleting a department/faculty/sponsor is blocked if grants reference them
+
+### Uniqueness Constraints
+- **Department Names**: Must be unique (prevents duplicates)
+- **Faculty Emails**: Must be unique (one email per faculty member)
+- **Sponsor Identity**: Unique on `(name, sponsorType)` (allows same name with different types)
+
+### Data Validity
+- **Grant Status**: Enforced via Zod schemas in application layer (draft, submitted, under_review, awarded, declined)
+- **Date Consistency**: Application logic validates `awardedAt >= submittedAt` for awarded grants
+- **Amount Non-Negative**: Decimal type with application-level validation ensures positive amounts
+
+### Temporal Consistency
+- **12-Month Windows**: Metrics calculations use consistent 12-month rolling windows from current date
+- **Date Filtering**: All date-based queries filter on `submittedAt` or `awardedAt` with proper NULL handling
+
+### SQL Query Correctness
+- **Median Calculation**: Uses `PERCENTILE_CONT(0.5)` for accurate median computation in database
+- **Ranking**: Uses `RANK() OVER` window function for correct handling of ties
+- **Aggregation**: `COALESCE(SUM(...), 0)` ensures faculty with no awards show 0, not NULL
+- **Division by Zero**: Award rate calculation includes protection against division by zero
+
+### Data Completeness
+- **Required Fields**: All foreign keys and essential fields are non-nullable
+- **Optional Dates**: `submittedAt` and `awardedAt` are nullable to support draft grants
+- **Default Timestamps**: `createdAt` and `updatedAt` are automatically managed
+

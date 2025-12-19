@@ -35,14 +35,18 @@ export async function getMetricsSummary(): Promise<MetricsSummary> {
       0
     );
 
-    // Calculate award rate
+    // Calculate award rate: percentage of submissions that resulted in awards
+    // Division by zero protection: returns 0 if no submissions
     const awardRate =
       totalSubmissions > 0
         ? awardedGrants.length / totalSubmissions
         : 0;
 
     // Calculate median time-to-award using SQL window function
-    // This uses PERCENTILE_CONT to get the median
+    // PERCENTILE_CONT(0.5) computes the median (50th percentile) efficiently in the database
+    // This is more accurate than fetching all rows and computing median in application code
+    // EXTRACT(EPOCH FROM ...) / 86400 converts timestamp difference to days
+    // Filter ensures we only consider awarded grants with valid dates in the last 12 months
     const medianResult = await prisma.$queryRaw<Array<{ median_days: number | null }>>`
       SELECT 
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 

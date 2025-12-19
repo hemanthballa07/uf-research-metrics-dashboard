@@ -1,20 +1,7 @@
-import express from 'express';
-import { errorHandler } from './middleware/errorHandler.js';
-import { requestLogger } from './middleware/requestLogger.js';
-import routes from './routes/index.js';
+import { createApp } from './app.js';
 
-const app = express();
+const app = createApp();
 const PORT = process.env.API_PORT || 3001;
-
-// Middleware
-app.use(express.json());
-app.use(requestLogger);
-
-// Routes
-app.use(routes);
-
-// Error handling (must be last)
-app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {

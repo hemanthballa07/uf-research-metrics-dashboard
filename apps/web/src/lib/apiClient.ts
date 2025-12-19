@@ -151,6 +151,77 @@ export const api = {
     }>>(`/api/metrics/awards-by-sponsor-type${queryString ? `?${queryString}` : ''}`);
   },
 
+  // Insights (consolidated endpoint)
+  async getInsights(params?: {
+    months?: number;
+    departmentId?: number;
+    sponsorType?: string;
+    status?: string;
+  }) {
+    const searchParams = new URLSearchParams();
+    if (params?.months) {
+      searchParams.append('months', String(params.months));
+    }
+    if (params?.departmentId) {
+      searchParams.append('departmentId', String(params.departmentId));
+    }
+    if (params?.sponsorType) {
+      searchParams.append('sponsorType', params.sponsorType);
+    }
+    if (params?.status) {
+      searchParams.append('status', params.status);
+    }
+    const queryString = searchParams.toString();
+    return fetchApi<{
+      summary: {
+        submissions: number;
+        awards: number;
+        awardRate: number;
+        totalAwardedAmount: number;
+        medianTimeToAward: number | null;
+        avgAwardSize: number;
+      };
+      timeseries: Array<{
+        month: string;
+        submissions: number;
+        awards: number;
+        awardedAmount: number;
+        statusCounts: {
+          draft: number;
+          submitted: number;
+          under_review: number;
+          awarded: number;
+          declined: number;
+        };
+      }>;
+      dailyActivity: Array<{
+        date: string;
+        submissions: number;
+        awards: number;
+        awardedAmount: number;
+      }>;
+      sponsorBreakdown: Array<{
+        name: string;
+        sponsorType: string | null;
+        awardedAmount: number;
+        count: number;
+      }>;
+      departmentBreakdown: Array<{
+        departmentId: number;
+        name: string;
+        awardedAmount: number;
+        awards: number;
+        submissions: number;
+      }>;
+      funnel: {
+        submitted: number;
+        underReview: number;
+        awarded: number;
+        declined: number;
+      };
+    }>(`/api/insights${queryString ? `?${queryString}` : ''}`);
+  },
+
   // Grants
   async getGrants(params?: {
     department?: number;

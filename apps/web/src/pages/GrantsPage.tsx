@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, ApiClientError } from '../lib/apiClient';
+import { api, ApiClientError, NetworkError } from '../lib/apiClient';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 import { GrantDrawer } from '../components/GrantDrawer';
@@ -111,8 +111,19 @@ export function GrantsPage() {
       setGrants(data.items);
       setTotal(data.total);
     } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : 'Failed to load grants';
+      let message = 'Failed to load grants';
+      if (err instanceof NetworkError) {
+        message = err.message;
+      } else if (err instanceof ApiClientError) {
+        message = err.message;
+        // Show field-specific validation errors if available
+        if (err.fields && Object.keys(err.fields).length > 0) {
+          const fieldErrors = Object.entries(err.fields)
+            .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+            .join('; ');
+          message = `${message} (${fieldErrors})`;
+        }
+      }
       setError(message);
     } finally {
       setLoading(false);
@@ -145,8 +156,12 @@ export function GrantsPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : 'Export failed';
+      let message = 'Export failed';
+      if (err instanceof NetworkError) {
+        message = err.message;
+      } else if (err instanceof ApiClientError) {
+        message = err.message;
+      }
       alert(`Export error: ${message}`);
     } finally {
       setExporting(false);

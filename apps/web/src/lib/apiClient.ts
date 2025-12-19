@@ -8,6 +8,7 @@ interface ApiError {
     code?: string;
     statusCode: number;
     timestamp: string;
+    fields?: Record<string, string[]>;
   };
 }
 
@@ -15,10 +16,18 @@ class ApiClientError extends Error {
   constructor(
     message: string,
     public statusCode: number,
-    public code?: string
+    public code?: string,
+    public fields?: Record<string, string[]>
   ) {
     super(message);
     this.name = 'ApiClientError';
+  }
+}
+
+class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NetworkError';
   }
 }
 
@@ -27,26 +36,68 @@ async function fetchApi<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    const error = data as ApiError;
-    throw new ApiClientError(
-      error.error?.message || 'An error occurred',
-      response.status,
-      error.error?.code
-    );
+  
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    // Handle network errors (connection failures, timeouts, etc.)
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new NetworkError(
+        'Unable to connect to the server. Please check your internet connection and try again.'
+      );
+    }
+    throw new NetworkError('Network error occurred. Please try again.');
   }
 
-  return data as T;
+  // Check if response is JSON before parsing
+  const contentType = response.headers.get('content-type');
+  const isJson = contentType?.includes('application/json');
+
+  if (!response.ok) {
+    let errorMessage = 'An error occurred';
+    let errorCode: string | undefined;
+    let errorFields: Record<string, string[]> | undefined;
+
+    if (isJson) {
+      try {
+        const error = (await response.json()) as ApiError;
+        errorMessage = error.error?.message || errorMessage;
+        errorCode = error.error?.code;
+        errorFields = error.error?.fields;
+      } catch {
+        // If JSON parsing fails, use status text
+        errorMessage = response.statusText || errorMessage;
+      }
+    } else {
+      // For non-JSON error responses, use status text
+      errorMessage = response.statusText || `Server returned ${response.status}`;
+    }
+
+    throw new ApiClientError(errorMessage, response.status, errorCode, errorFields);
+  }
+
+  // Parse JSON response
+  if (isJson) {
+    try {
+      return (await response.json()) as T;
+    } catch (err) {
+      throw new ApiClientError(
+        'Invalid response format from server',
+        500,
+        'INVALID_RESPONSE'
+      );
+    }
+  }
+
+  // For non-JSON responses, return response as-is (handled by specific methods like exportGrants)
+  return response as unknown as T;
 }
 
 // API methods
@@ -194,5 +245,5 @@ export const api = {
   },
 };
 
-export { ApiClientError };
+export { ApiClientError, NetworkError };
 

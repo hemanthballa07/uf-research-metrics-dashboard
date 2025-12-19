@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, ApiClientError } from '../lib/apiClient';
+import { api, ApiClientError, NetworkError } from '../lib/apiClient';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 import { SkeletonCard } from '../components/Skeleton';
@@ -33,8 +33,12 @@ export function DashboardPage() {
       setMetrics(metricsData);
       setStatusBreakdown(breakdownData);
     } catch (err) {
-      const message =
-        err instanceof ApiClientError ? err.message : 'Failed to load metrics';
+      let message = 'Failed to load metrics';
+      if (err instanceof NetworkError) {
+        message = err.message;
+      } else if (err instanceof ApiClientError) {
+        message = err.message;
+      }
       setError(message);
     } finally {
       setLoading(false);

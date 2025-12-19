@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, ApiClientError } from '../lib/apiClient';
+import { api, ApiClientError, NetworkError } from '../lib/apiClient';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 
@@ -47,8 +47,12 @@ export function LeaderboardPage() {
           );
         }
       } catch (err) {
-        const message =
-          err instanceof ApiClientError ? err.message : 'Failed to load leaderboard';
+        let message = 'Failed to load leaderboard';
+        if (err instanceof NetworkError) {
+          message = err.message;
+        } else if (err instanceof ApiClientError) {
+          message = err.message;
+        }
         setError(message);
       } finally {
         setLoading(false);

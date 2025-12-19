@@ -71,3 +71,29 @@ export async function getMetricsSummary(): Promise<MetricsSummary> {
   }
 }
 
+export async function getStatusBreakdown() {
+  try {
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now);
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const statusCounts = await prisma.grant.groupBy({
+      by: ['status'],
+      where: {
+        submittedAt: {
+          gte: twelveMonthsAgo,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    return statusCounts.map((item) => ({
+      status: item.status,
+      count: item._count.id,
+    }));
+  } catch (error) {
+    throw new DatabaseError('Failed to fetch status breakdown', error);
+  }
+}

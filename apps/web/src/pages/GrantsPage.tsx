@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 import { GrantDrawer } from '../components/GrantDrawer';
 import { useDebounce } from '../hooks/useDebounce';
+import { SkeletonTable } from '../components/Skeleton';
 
 type Grant = {
   id: number;
@@ -26,14 +27,38 @@ export function GrantsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [selectedGrant, setSelectedGrant] = useState<Grant | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Filter options
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
+  const [sponsors, setSponsors] = useState<Array<{ id: number; name: string; sponsorType: string }>>([]);
 
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [departmentFilter, setDepartmentFilter] = useState<number | undefined>(undefined);
+  const [sponsorFilter, setSponsorFilter] = useState<number | undefined>(undefined);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
   const debouncedSearch = useDebounce(search, 500);
+
+  // Load filter options
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const [depts, spon] = await Promise.all([
+          api.getDepartments(),
+          api.getSponsors(),
+        ]);
+        setDepartments(depts);
+        setSponsors(spon);
+      } catch (err) {
+        console.error('Failed to load filter options:', err);
+      }
+    };
+    loadFilterOptions();
+  }, []);
 
   const fetchGrants = async () => {
     try {
@@ -49,6 +74,12 @@ export function GrantsPage() {
       }
       if (statusFilter) {
         params.status = statusFilter;
+      }
+      if (departmentFilter) {
+        params.department = departmentFilter;
+      }
+      if (sponsorFilter) {
+        params.sponsor = sponsorFilter;
       }
       if (dateFrom) {
         params.date_from = dateFrom;
@@ -71,7 +102,37 @@ export function GrantsPage() {
 
   useEffect(() => {
     fetchGrants();
-  }, [page, pageSize, debouncedSearch, statusFilter, dateFrom, dateTo]);
+  }, [page, pageSize, debouncedSearch, statusFilter, departmentFilter, sponsorFilter, dateFrom, dateTo]);
+
+  const handleExport = async (format: 'csv' | 'json') => {
+    try {
+      setExporting(true);
+      const params: Record<string, string | number> = {};
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (statusFilter) params.status = statusFilter;
+      if (departmentFilter) params.department = departmentFilter;
+      if (sponsorFilter) params.sponsor = sponsorFilter;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
+      params.format = format;
+
+      const blob = await api.exportGrants(params);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `grants-export.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      const message =
+        err instanceof ApiClientError ? err.message : 'Export failed';
+      alert(`Export error: ${message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleRowClick = (grant: Grant) => {
     setSelectedGrant(grant);
@@ -115,7 +176,12 @@ export function GrantsPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   if (loading && grants.length === 0) {
-    return <LoadingSpinner />;
+    return (
+      <div>
+        <h1 style={{ marginBottom: '2rem', fontSize: '2rem', color: '#1a1a1a' }}>Grants</h1>
+        <SkeletonTable rows={10} />
+      </div>
+    );
   }
 
   return (
@@ -209,6 +275,78 @@ export function GrantsPage() {
             </select>
           </div>
 
+          {/* Department Filter */}
+          <div>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                color: '#666',
+                fontWeight: '500',
+              }}
+            >
+              Department
+            </label>
+            <select
+              value={departmentFilter || ''}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value ? Number(e.target.value) : undefined);
+                setPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+              }}
+            >
+              <option value="">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sponsor Filter */}
+          <div>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                color: '#666',
+                fontWeight: '500',
+              }}
+            >
+              Sponsor
+            </label>
+            <select
+              value={sponsorFilter || ''}
+              onChange={(e) => {
+                setSponsorFilter(e.target.value ? Number(e.target.value) : undefined);
+                setPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+              }}
+            >
+              <option value="">All Sponsors</option>
+              {sponsors.map((sponsor) => (
+                <option key={sponsor.id} value={sponsor.id}>
+                  {sponsor.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Date From */}
           <div>
             <label
@@ -268,6 +406,42 @@ export function GrantsPage() {
               }}
             />
           </div>
+        </div>
+
+        {/* Export Buttons */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+          <button
+            onClick={() => handleExport('csv')}
+            disabled={exporting || loading}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: exporting || loading ? 'not-allowed' : 'pointer',
+              fontSize: '0.9rem',
+              opacity: exporting || loading ? 0.6 : 1,
+            }}
+          >
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+          <button
+            onClick={() => handleExport('json')}
+            disabled={exporting || loading}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: exporting || loading ? 'not-allowed' : 'pointer',
+              fontSize: '0.9rem',
+              opacity: exporting || loading ? 0.6 : 1,
+            }}
+          >
+            {exporting ? 'Exporting...' : 'Export JSON'}
+          </button>
         </div>
       </div>
 

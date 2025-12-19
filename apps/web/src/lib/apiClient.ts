@@ -66,6 +66,11 @@ export const api = {
     }>('/api/metrics/summary');
   },
 
+  // Status Breakdown
+  async getStatusBreakdown() {
+    return fetchApi<Array<{ status: string; count: number }>>('/api/metrics/status-breakdown');
+  },
+
   // Grants
   async getGrants(params?: {
     department?: number;
@@ -123,6 +128,69 @@ export const api = {
       totalAwarded: number;
       rank: number;
     }>>(`/api/faculty/leaderboard${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Departments
+  async getDepartments() {
+    return fetchApi<Array<{ id: number; name: string }>>('/api/departments');
+  },
+
+  // Sponsors
+  async getSponsors() {
+    return fetchApi<Array<{ id: number; name: string; sponsorType: string }>>('/api/sponsors');
+  },
+
+  // Get single grant
+  async getGrantById(id: number) {
+    return fetchApi<{
+      id: number;
+      title: string;
+      sponsorId: number;
+      piId: number;
+      departmentId: number;
+      amount: number;
+      status: string;
+      submittedAt: string | null;
+      awardedAt: string | null;
+      createdAt: string;
+      updatedAt: string;
+      sponsor?: { id: number; name: string; sponsorType: string };
+      pi?: { id: number; name: string; email: string; departmentId: number };
+      department?: { id: number; name: string };
+    }>(`/api/grants/${id}`);
+  },
+
+  // Export grants
+  async exportGrants(params?: {
+    department?: number;
+    sponsor?: number;
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    format?: 'csv' | 'json';
+  }) {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = searchParams.toString();
+    const url = `${API_URL}/api/grants/export${queryString ? `?${queryString}` : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new ApiClientError(
+        error.error?.message || 'Export failed',
+        response.status,
+        error.error?.code
+      );
+    }
+    const blob = await response.blob();
+    return blob;
   },
 };
 

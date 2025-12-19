@@ -125,3 +125,64 @@ export async function getGrants(
   }
 }
 
+export async function getGrantById(id: number): Promise<GrantWithRelations> {
+  try {
+    const grant = await prisma.grant.findUnique({
+      where: { id },
+      include: {
+        sponsor: true,
+        pi: {
+          include: {
+            department: true,
+          },
+        },
+        department: true,
+      },
+    });
+
+    if (!grant) {
+      throw new Error('Grant not found');
+    }
+
+    return {
+      id: grant.id,
+      title: grant.title,
+      sponsorId: grant.sponsorId,
+      piId: grant.piId,
+      departmentId: grant.departmentId,
+      amount: Number(grant.amount),
+      status: grant.status as GrantWithRelations['status'],
+      submittedAt: grant.submittedAt,
+      awardedAt: grant.awardedAt,
+      createdAt: grant.createdAt,
+      updatedAt: grant.updatedAt,
+      sponsor: grant.sponsor
+        ? {
+            id: grant.sponsor.id,
+            name: grant.sponsor.name,
+            sponsorType: grant.sponsor.sponsorType as GrantWithRelations['sponsor']['sponsorType'],
+          }
+        : undefined,
+      pi: grant.pi
+        ? {
+            id: grant.pi.id,
+            name: grant.pi.name,
+            email: grant.pi.email,
+            departmentId: grant.pi.departmentId,
+          }
+        : undefined,
+      department: grant.department
+        ? {
+            id: grant.department.id,
+            name: grant.department.name,
+          }
+        : undefined,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Grant not found') {
+      throw error;
+    }
+    throw new DatabaseError('Failed to fetch grant', error);
+  }
+}
+

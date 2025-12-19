@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { grantsQuerySchema } from '@uf-research-metrics-platform/shared';
-import { ValidationError } from '@uf-research-metrics-platform/shared';
-import { getGrants } from '../services/grantsService.js';
+import { ValidationError, NotFoundError } from '@uf-research-metrics-platform/shared';
+import { getGrants, getGrantById } from '../services/grantsService.js';
 
 export async function getGrantsHandler(req: Request, res: Response): Promise<void> {
   // Validate query parameters
@@ -34,5 +34,23 @@ export async function getGrantsHandler(req: Request, res: Response): Promise<voi
   });
 
   res.status(200).json(result);
+}
+
+export async function getGrantByIdHandler(req: Request, res: Response): Promise<void> {
+  const id = parseInt(req.params.id, 10);
+
+  if (isNaN(id) || id <= 0) {
+    throw new ValidationError('Invalid grant ID');
+  }
+
+  try {
+    const grant = await getGrantById(id);
+    res.status(200).json(grant);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Grant not found') {
+      throw new NotFoundError('Grant', id);
+    }
+    throw error;
+  }
 }
 

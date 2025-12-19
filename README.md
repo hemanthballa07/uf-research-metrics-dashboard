@@ -2,6 +2,8 @@
 
 Internal web platform for a university Office of Research to track grant activity, faculty productivity, and research metrics.
 
+**Quick Start:** See [Getting Started](#getting-started) below. For Docker: `docker compose up` then run migrations. For local: ensure PostgreSQL is running, copy `.env.example` to `.env`, run `pnpm db:migrate` and `pnpm db:seed`, then `pnpm dev`.
+
 ## Architecture
 
 Monorepo structure:
@@ -14,8 +16,9 @@ Monorepo structure:
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- pnpm >= 8.0.0
-- PostgreSQL >= 16 (for local development)
+- pnpm >= 8.0.0 (install via `npm install -g pnpm` or `corepack enable`)
+- PostgreSQL >= 16 (for local development, or use Docker)
+- Docker and Docker Compose (for Docker development)
 
 ### Installation
 
@@ -25,21 +28,23 @@ pnpm install
 
 ### Local Development (Non-Docker)
 
+**Prerequisites:**
+- Ensure PostgreSQL is running and accessible
+- Create the database: `createdb uf_research_metrics` (or use your preferred method)
+
 1. **Set up environment variables:**
    ```bash
    cp .env.example .env
    # Edit .env with your PostgreSQL connection string
+   # Update DATABASE_URL to match your local PostgreSQL instance
    ```
 
 2. **Set up the database:**
    ```bash
-   # Generate Prisma Client
-   pnpm --filter api exec prisma generate
-
-   # Run migrations
+   # Run migrations (this also generates Prisma Client)
    pnpm db:migrate
 
-   # Seed database
+   # Seed database with sample data
    pnpm db:seed
    ```
 
@@ -53,15 +58,28 @@ pnpm install
    pnpm --filter web dev    # Web on http://localhost:3000
    ```
 
+4. **Verify setup:**
+   ```bash
+   # Check API health
+   curl http://localhost:3001/api/health
+   # Should return: {"status":"ok","service":"api",...}
+   ```
+
 ### Docker Development
 
 1. **Start all services:**
    ```bash
    docker compose up
    ```
+   This will:
+   - Start PostgreSQL (database is auto-created)
+   - Build and start the API service
+   - Build and start the Web service
+   - Wait for PostgreSQL to be healthy before starting API
 
 2. **Run migrations and seed:**
    ```bash
+   # Wait for services to be ready, then run:
    docker compose exec api pnpm --filter api db:migrate
    docker compose exec api pnpm --filter api db:seed
    ```
@@ -70,6 +88,13 @@ pnpm install
    - Web: http://localhost:3000
    - API: http://localhost:3001
    - Database: localhost:5432
+
+4. **Verify setup:**
+   ```bash
+   # Check API health
+   curl http://localhost:3001/api/health
+   # Should return: {"status":"ok","service":"api",...}
+   ```
 
 ### Building
 

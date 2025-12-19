@@ -460,156 +460,158 @@ export function InsightsPage() {
         </motion.div>
       )}
 
-      {/* Pipeline Over Time */}
-      {data && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <h2
-            style={{
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '0.75rem',
-            }}
+      {/* Pipeline Over Time & Grant Activity Heatmap - Side by Side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        {data && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           >
-            Pipeline Over Time
-          </h2>
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '1rem',
-              borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e0e0e0',
-            }}
-          >
-            <StackedAreaChart
-              data={data.timeseries.map((point) => ({
-                month: point.month,
-                submitted: point.statusCounts.submitted,
-                under_review: point.statusCounts.under_review,
-                awarded: point.statusCounts.awarded,
-                declined: point.statusCounts.declined,
-              }))}
-            />
-          </div>
-        </motion.div>
-      )}
-
-      {/* Grant Activity Heatmap */}
-      {data && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2
               style={{
-                fontSize: '1.25rem',
+                fontSize: '1.1rem',
                 fontWeight: '600',
                 color: '#333',
-                margin: 0,
+                marginBottom: '0.75rem',
               }}
             >
-              Grant Activity Heatmap
+              Pipeline Over Time
             </h2>
-            <select
-              value={heatmapMetric}
-              onChange={(e) => setHeatmapMetric(e.target.value as 'submissions' | 'awards' | 'awardedAmount')}
+            <div
               style={{
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
+                backgroundColor: '#fff',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                border: '1px solid #e0e0e0',
               }}
             >
-              <option value="submissions">Submissions</option>
-              <option value="awards">Awards</option>
-              <option value="awardedAmount">Awarded Amount</option>
-            </select>
-          </div>
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '1rem',
-              borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e0e0e0',
-            }}
-          >
-            <ActivityHeatmap data={data.dailyActivity} metric={heatmapMetric} />
-          </div>
-        </motion.div>
-      )}
+              <StackedAreaChart
+                data={data.timeseries.map((point) => ({
+                  month: point.month,
+                  submitted: point.statusCounts.submitted,
+                  under_review: point.statusCounts.under_review,
+                  awarded: point.statusCounts.awarded,
+                  declined: point.statusCounts.declined,
+                }))}
+              />
+            </div>
+          </motion.div>
+        )}
 
-      {/* Sponsor Breakdown */}
-      {data && data.sponsorBreakdown.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
-          <h2
-            style={{
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '0.75rem',
-            }}
+        {data && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
           >
-            Sponsor Breakdown
-          </h2>
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '1rem',
-              borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e0e0e0',
-            }}
-          >
-            <SponsorBarChart data={data.sponsorBreakdown} />
-          </div>
-        </motion.div>
-      )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  color: '#333',
+                  margin: 0,
+                }}
+              >
+                Grant Activity Heatmap
+              </h2>
+              <select
+                value={heatmapMetric}
+                onChange={(e) => setHeatmapMetric(e.target.value as 'submissions' | 'awards' | 'awardedAmount')}
+                style={{
+                  padding: '0.4rem 0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                }}
+              >
+                <option value="submissions">Submissions</option>
+                <option value="awards">Awards</option>
+                <option value="awardedAmount">Awarded Amount</option>
+              </select>
+            </div>
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <ActivityHeatmap data={data.dailyActivity} metric={heatmapMetric} />
+            </div>
+          </motion.div>
+        )}
+      </div>
 
-      {/* Department Comparison */}
-      {data && data.departmentBreakdown.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-        >
-          <h2
-            style={{
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '0.75rem',
-            }}
+      {/* Sponsor Breakdown & Department Comparison - Side by Side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        {data && data.sponsorBreakdown.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
           >
-            Department Comparison
-          </h2>
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '1rem',
-              borderRadius: '8px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e0e0e0',
-            }}
+            <h2
+              style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#333',
+                marginBottom: '0.75rem',
+              }}
+            >
+              Sponsor Breakdown
+            </h2>
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <SponsorBarChart data={data.sponsorBreakdown} />
+            </div>
+          </motion.div>
+        )}
+
+        {data && data.departmentBreakdown.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
           >
-            <DepartmentDonutChart
-              data={data.departmentBreakdown}
-              onDepartmentClick={setSelectedDepartment}
-            />
-          </div>
-        </motion.div>
-      )}
+            <h2
+              style={{
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                color: '#333',
+                marginBottom: '0.75rem',
+              }}
+            >
+              Department Comparison
+            </h2>
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <DepartmentDonutChart
+                data={data.departmentBreakdown}
+                onDepartmentClick={setSelectedDepartment}
+              />
+            </div>
+          </motion.div>
+        )}
+      </div>
 
       {/* Grant Flow */}
       {data && (

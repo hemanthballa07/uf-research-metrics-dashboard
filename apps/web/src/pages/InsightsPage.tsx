@@ -64,7 +64,7 @@ export function InsightsPage() {
     months: 12,
     departmentId: '',
     sponsorType: '',
-    status: [] as string[],
+    status: '',
   });
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,8 +105,8 @@ export function InsightsPage() {
       if (filters.sponsorType) {
         params.sponsorType = filters.sponsorType;
       }
-      if (filters.status.length > 0) {
-        params.status = filters.status.join(',');
+      if (filters.status) {
+        params.status = filters.status;
       }
       const insightsData = await api.getInsights(params);
       setData(insightsData);
@@ -136,7 +136,7 @@ export function InsightsPage() {
       months: 12,
       departmentId: '',
       sponsorType: '',
-      status: [],
+      status: '',
     });
   };
 
@@ -201,7 +201,7 @@ export function InsightsPage() {
         </p>
       </motion.div>
 
-      {/* Filter Panel - Sticky */}
+      {/* Filter Panel */}
       <div
         style={{
           backgroundColor: '#fff',
@@ -209,9 +209,6 @@ export function InsightsPage() {
           borderRadius: '8px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           border: '1px solid #e0e0e0',
-          position: 'sticky',
-          top: '1rem',
-          zIndex: 100,
         }}
       >
         <h3
@@ -330,7 +327,7 @@ export function InsightsPage() {
             </select>
           </div>
 
-          {/* Status Multi-select */}
+          {/* Status */}
           <div>
             <label
               style={{
@@ -344,21 +341,17 @@ export function InsightsPage() {
               Status
             </label>
             <select
-              multiple
               value={filters.status}
-              onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, (option) => option.value);
-                handleFilterChange('status', selected);
-              }}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.5rem',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontSize: '0.875rem',
-                minHeight: '80px',
               }}
             >
+              <option value="">All Statuses</option>
               <option value="draft">Draft</option>
               <option value="submitted">Submitted</option>
               <option value="under_review">Under Review</option>

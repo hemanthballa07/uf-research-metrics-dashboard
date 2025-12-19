@@ -431,12 +431,15 @@ export async function getInsightsData(params: {
     if (departmentId) {
       sponsorWhere.departmentId = departmentId;
     }
+    if (sponsorType) {
+      sponsorWhere.sponsor = {
+        sponsorType: sponsorType,
+      };
+    }
 
+    // Note: Cannot use both include and select - use select only
     const sponsorGrants = await prisma.grant.findMany({
       where: sponsorWhere,
-      include: {
-        sponsor: true,
-      },
       select: {
         amount: true,
         sponsor: {
@@ -555,6 +558,12 @@ export async function getInsightsData(params: {
       funnel,
     };
   } catch (error) {
+    // Log the actual error for debugging
+    console.error('Insights service error:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new DatabaseError('Failed to fetch insights data', error);
   }
 }

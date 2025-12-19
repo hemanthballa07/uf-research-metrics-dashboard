@@ -40,8 +40,18 @@ export function GrantsPage() {
   const [sponsorFilter, setSponsorFilter] = useState<number | undefined>(undefined);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 500);
+
+  // Validate date range
+  const validateDateRange = (from: string, to: string): string | null => {
+    if (!from && !to) return null;
+    if (from && to && new Date(from) > new Date(to)) {
+      return 'Date From must be before or equal to Date To';
+    }
+    return null;
+  };
 
   // Load filter options
   useEffect(() => {
@@ -81,6 +91,15 @@ export function GrantsPage() {
       if (sponsorFilter) {
         params.sponsor = sponsorFilter;
       }
+      // Only include dates if validation passes
+      const dateValidationError = validateDateRange(dateFrom, dateTo);
+      if (dateValidationError) {
+        setDateError(dateValidationError);
+        setLoading(false);
+        return;
+      }
+      setDateError(null);
+
       if (dateFrom) {
         params.date_from = dateFrom;
       }
@@ -364,13 +383,18 @@ export function GrantsPage() {
               type="date"
               value={dateFrom}
               onChange={(e) => {
-                setDateFrom(e.target.value);
+                const newDateFrom = e.target.value;
+                setDateFrom(newDateFrom);
                 setPage(1);
+                // Validate immediately on change
+                const error = validateDateRange(newDateFrom, dateTo);
+                setDateError(error);
               }}
+              max={dateTo || undefined}
               style={{
                 width: '100%',
                 padding: '0.5rem',
-                border: '1px solid #ddd',
+                border: `1px solid ${dateError ? '#dc3545' : '#ddd'}`,
                 borderRadius: '4px',
                 fontSize: '0.9rem',
               }}
@@ -394,18 +418,41 @@ export function GrantsPage() {
               type="date"
               value={dateTo}
               onChange={(e) => {
-                setDateTo(e.target.value);
+                const newDateTo = e.target.value;
+                setDateTo(newDateTo);
                 setPage(1);
+                // Validate immediately on change
+                const error = validateDateRange(dateFrom, newDateTo);
+                setDateError(error);
               }}
+              min={dateFrom || undefined}
               style={{
                 width: '100%',
                 padding: '0.5rem',
-                border: '1px solid #ddd',
+                border: `1px solid ${dateError ? '#dc3545' : '#ddd'}`,
                 borderRadius: '4px',
                 fontSize: '0.9rem',
               }}
             />
           </div>
+        </div>
+
+        {/* Date Range Error Message */}
+        {dateError && (
+          <div
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              borderRadius: '4px',
+              color: '#856404',
+              fontSize: '0.875rem',
+            }}
+          >
+            ⚠️ {dateError}
+          </div>
+        )}
         </div>
 
         {/* Export Buttons */}

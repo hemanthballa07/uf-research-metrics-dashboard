@@ -1,0 +1,77 @@
+// Prisma schema for UF Research Metrics Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(255)
+  faculty   Faculty[]
+  grants    Grant[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@map("departments")
+}
+
+model Faculty {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  email       String   @unique @db.VarChar(255)
+  departmentId Int
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  grantsAsPi  Grant[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([email])
+  @@map("faculty")
+}
+
+model Sponsor {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  sponsorType String   @db.VarChar(50)
+  grants      Grant[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, sponsorType])
+  @@index([sponsorType])
+  @@index([name])
+  @@map("sponsors")
+}
+
+model Grant {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(500)
+  sponsorId   Int
+  sponsor     Sponsor   @relation(fields: [sponsorId], references: [id], onDelete: Restrict)
+  piId        Int
+  pi          Faculty   @relation(fields: [piId], references: [id], onDelete: Restrict)
+  departmentId Int
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  amount      Decimal   @db.Decimal(15, 2)
+  status      String    @db.VarChar(50)
+  submittedAt DateTime? @db.Timestamp
+  awardedAt   DateTime? @db.Timestamp
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([sponsorId])
+  @@index([piId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([awardedAt])
+  @@map("grants")
+}
+

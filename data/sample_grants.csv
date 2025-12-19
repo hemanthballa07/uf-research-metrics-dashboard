@@ -1,0 +1,12 @@
+title,sponsor_name,sponsor_type,pi_name,pi_email,department_name,amount,status,submitted_at,awarded_at
+Advanced Machine Learning for Medical Diagnostics,National Science Foundation,federal,Dr. Jane Smith,jane.smith@university.edu,Engineering,500000.00,awarded,2024-01-15,2024-04-15
+Novel Cancer Treatment Protocols,National Institutes of Health,federal,Dr. John Doe,john.doe@university.edu,Medicine,1200000.00,awarded,2024-01-10,2024-05-10
+Ecosystem Biodiversity Study,Bill & Melinda Gates Foundation,foundation,Dr. Sarah Johnson,sarah.johnson@university.edu,Biology,750000.00,under_review,2024-03-20,
+Sustainable Chemical Synthesis Methods,National Science Foundation,federal,Dr. Michael Chen,michael.chen@university.edu,Chemistry,350000.00,submitted,2024-05-01,
+Renewable Energy Storage Systems,State Research Council,state,Dr. Emily Williams,emily.williams@university.edu,Engineering,250000.00,awarded,2024-01-20,2024-04-20
+Neural Network Optimization Algorithms,National Science Foundation,federal,Dr. Jane Smith,jane.smith@university.edu,Engineering,400000.00,declined,2024-01-15,
+Biomedical Imaging Techniques,National Institutes of Health,federal,Dr. John Doe,john.doe@university.edu,Medicine,800000.00,awarded,2023-12-01,2024-03-01
+Marine Biology Conservation Project,Bill & Melinda Gates Foundation,foundation,Dr. Sarah Johnson,sarah.johnson@university.edu,Biology,600000.00,submitted,2024-04-15,
+Green Chemistry Innovations,State Research Council,state,Dr. Michael Chen,michael.chen@university.edu,Chemistry,300000.00,under_review,2024-03-10,
+Smart Grid Technology Development,National Science Foundation,federal,Dr. Emily Williams,emily.williams@university.edu,Engineering,450000.00,awarded,2023-11-15,2024-02-15
+

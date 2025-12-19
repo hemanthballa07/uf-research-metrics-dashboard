@@ -252,6 +252,7 @@ uf-research-metrics-platform/
 - **Dashboard**: View KPI cards, status breakdown visualization, and Visual Insights charts
 - **Grants page**: Filter by status and department, then click a grant row to see the detail drawer
 - **Leaderboard**: Switch department filter to see ranked faculty by awarded amount
+- **Insights page**: Interactive analytics console with advanced visualizations, filters, and drill-down capabilities
 
 ## Visual Insights
 
@@ -262,6 +263,19 @@ The dashboard includes interactive charts for enhanced data interpretation:
 - **Awarded Amount by Sponsor Type**: Bar chart comparing funding by sponsor category
 
 Charts include smooth animations and responsive layouts. See [Visual Insights screenshot](./docs/assets/visual-insights.png) for reference.
+
+## Insights Page
+
+The Insights page provides an interactive analytics console for deep-dive analysis of grant activity and research productivity:
+
+- **KPI Dashboard**: Six key performance indicators with animated count-up effects and sparkline trend charts
+- **Pipeline Over Time**: Stacked area chart showing monthly status breakdown (Submitted, Under Review, Awarded, Declined)
+- **Activity Heatmap**: GitHub-style daily activity visualization with toggleable metrics (submissions, awards, awarded amount)
+- **Sponsor Breakdown**: Bar chart showing top sponsors by awarded amount
+- **Department Comparison**: Ranked bar chart with drill-down panel showing top faculty and sponsors per department
+- **Grant Flow**: Animated funnel visualization showing conversion rates through the grant lifecycle
+
+All visualizations respond to cross-filtering by date range, department, sponsor type, and status. See [Insights page screenshot](./docs/assets/insights-page.png) for reference.
 
 ## Documentation
 

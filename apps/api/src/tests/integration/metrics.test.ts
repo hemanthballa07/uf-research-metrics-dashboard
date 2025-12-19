@@ -93,3 +93,108 @@ describe('GET /api/metrics/summary', () => {
   });
 });
 
+describe('GET /api/metrics/timeseries', () => {
+  beforeAll(async () => {
+    await setupTestDatabase();
+
+    // Seed test data for timeseries
+    const dept = await prisma.department.create({
+      data: { name: 'Test Department' },
+    });
+
+    const faculty = await prisma.faculty.create({
+      data: {
+        name: 'Dr. TimeSeries Test',
+        email: 'timeseries.test@university.edu',
+        departmentId: dept.id,
+      },
+    });
+
+    const sponsor = await prisma.sponsor.create({
+      data: {
+        name: 'Test Sponsor',
+        sponsorType: 'federal',
+      },
+    });
+
+    const now = new Date();
+    
+    // Create grants across different months
+    const months = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+    for (const monthOffset of months) {
+      const grantDate = new Date(now);
+      grantDate.setMonth(grantDate.getMonth() - monthOffset);
+      
+      // Create submitted grant
+      await prisma.grant.create({
+        data: {
+          title: `Grant ${monthOffset}`,
+          sponsorId: sponsor.id,
+          piId: faculty.id,
+          departmentId: dept.id,
+          amount: 100000 + monthOffset * 10000,
+          status: 'submitted',
+          submittedAt: grantDate,
+          awardedAt: null,
+        },
+      });
+
+      // Create awarded grant (awarded 1 month after submission)
+      const awardedDate = new Date(grantDate);
+      awardedDate.setMonth(awardedDate.getMonth() + 1);
+      await prisma.grant.create({
+        data: {
+          title: `Awarded Grant ${monthOffset}`,
+          sponsorId: sponsor.id,
+          piId: faculty.id,
+          departmentId: dept.id,
+          amount: 200000 + monthOffset * 20000,
+          status: 'awarded',
+          submittedAt: grantDate,
+          awardedAt: awardedDate,
+        },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    await cleanupTestDatabase();
+  });
+
+  it('should return 12 rows for default months parameter', async () => {
+    const response = await request(app).get('/api/metrics/timeseries').expect(200);
+
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveLength(12);
+  });
+
+  it('should return rows sorted ascending by month', async () => {
+    const response = await request(app).get('/api/metrics/timeseries').expect(200);
+
+    const months = response.body.map((row: { month: string }) => row.month);
+    const sortedMonths = [...months].sort();
+    
+    expect(months).toEqual(sortedMonths);
+  });
+
+  it('should have numeric fields that are non-negative', async () => {
+    const response = await request(app).get('/api/metrics/timeseries').expect(200);
+
+    response.body.forEach((row: { submissions: number; awards: number; awardedAmount: number }) => {
+      expect(typeof row.submissions).toBe('number');
+      expect(typeof row.awards).toBe('number');
+      expect(typeof row.awardedAmount).toBe('number');
+      expect(row.submissions).toBeGreaterThanOrEqual(0);
+      expect(row.awards).toBeGreaterThanOrEqual(0);
+      expect(row.awardedAmount).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it('should respect months query parameter', async () => {
+    const response = await request(app).get('/api/metrics/timeseries?months=6').expect(200);
+
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveLength(6);
+  });
+});
+

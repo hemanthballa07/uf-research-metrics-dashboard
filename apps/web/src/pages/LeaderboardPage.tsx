@@ -30,13 +30,14 @@ export function LeaderboardPage() {
         setLeaderboard(data);
 
         // Extract unique departments from leaderboard data for dropdown
-        // Note: This is a simplified approach - in production, you'd fetch departments from a dedicated endpoint
+        // Note: We could use api.getDepartments() for a complete list, but using leaderboard data
+        // ensures the dropdown only shows departments that have faculty with grants
         if (data.length > 0) {
           const uniqueDepts = new Map<string, number>();
           data.forEach((entry) => {
             if (!uniqueDepts.has(entry.departmentName)) {
-              // Use a hash of the name as a temporary ID
-              // In production, this would come from a departments API
+              // Use department name length as temporary ID (since we don't have department IDs from leaderboard)
+              // This is acceptable since we're only filtering by name, not using IDs
               uniqueDepts.set(entry.departmentName, entry.departmentName.length);
             }
           });

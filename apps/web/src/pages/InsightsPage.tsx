@@ -1,4 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { api, ApiClientError, NetworkError } from '../lib/apiClient';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorDisplay } from '../components/ErrorDisplay';
+import { KPITile } from '../components/insights/KPITile';
+
+interface InsightsData {
+  summary: {
+    submissions: number;
+    awards: number;
+    awardRate: number;
+    totalAwardedAmount: number;
+    medianTimeToAward: number | null;
+    avgAwardSize: number;
+  };
+  timeseries: Array<{
+    month: string;
+    submissions: number;
+    awards: number;
+    awardedAmount: number;
+    statusCounts: {
+      draft: number;
+      submitted: number;
+      under_review: number;
+      awarded: number;
+      declined: number;
+    };
+  }>;
+  dailyActivity: Array<{
+    date: string;
+    submissions: number;
+    awards: number;
+    awardedAmount: number;
+  }>;
+  sponsorBreakdown: Array<{
+    name: string;
+    sponsorType: string | null;
+    awardedAmount: number;
+    count: number;
+  }>;
+  departmentBreakdown: Array<{
+    departmentId: number;
+    name: string;
+    awardedAmount: number;
+    awards: number;
+    submissions: number;
+  }>;
+  funnel: {
+    submitted: number;
+    underReview: number;
+    awarded: number;
+    declined: number;
+  };
+}
 
 export function InsightsPage() {
   const [filters, setFilters] = useState({
@@ -7,6 +61,64 @@ export function InsightsPage() {
     sponsorType: '',
     status: [] as string[],
   });
+  const [data, setData] = useState<InsightsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
+
+  // Load departments for dropdown
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const depts = await api.getDepartments();
+        setDepartments(depts);
+      } catch (err) {
+        console.error('Failed to load departments:', err);
+      }
+    };
+    loadDepartments();
+  }, []);
+
+  // Fetch insights data
+  const fetchInsights = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params: {
+        months: number;
+        departmentId?: number;
+        sponsorType?: string;
+        status?: string;
+      } = {
+        months: filters.months,
+      };
+      if (filters.departmentId) {
+        params.departmentId = Number(filters.departmentId);
+      }
+      if (filters.sponsorType) {
+        params.sponsorType = filters.sponsorType;
+      }
+      if (filters.status.length > 0) {
+        params.status = filters.status.join(',');
+      }
+      const insightsData = await api.getInsights(params);
+      setData(insightsData);
+    } catch (err) {
+      let message = 'Failed to load insights';
+      if (err instanceof NetworkError) {
+        message = err.message;
+      } else if (err instanceof ApiClientError) {
+        message = err.message;
+      }
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInsights();
+  }, []); // Initial load
 
   const handleFilterChange = (key: string, value: unknown) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -22,14 +134,44 @@ export function InsightsPage() {
   };
 
   const handleApply = () => {
-    // TODO: Apply filters and fetch data
-    console.log('Applying filters:', filters);
+    fetchInsights();
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  if (loading && !data) {
+    return <LoadingSpinner />;
+  }
+
+  if (error && !data) {
+    return <ErrorDisplay message={error} />;
+  }
+
+  // Extract sparkline data from timeseries
+  const getSparklineData = (key: 'submissions' | 'awards' | 'awardedAmount') => {
+    return data?.timeseries.map((point) => point[key]) || [];
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}
+    >
       {/* Page Header */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1
           style={{
             fontSize: '2rem',
@@ -50,7 +192,7 @@ export function InsightsPage() {
         >
           Interactive analytics for grant activity and research productivity
         </p>
-      </div>
+      </motion.div>
 
       {/* Filter Panel - Sticky */}
       <div
@@ -140,7 +282,11 @@ export function InsightsPage() {
               }}
             >
               <option value="">All Departments</option>
-              {/* TODO: Populate from API */}
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -249,45 +395,70 @@ export function InsightsPage() {
         </div>
       </div>
 
-      {/* KPI Strip Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* KPI Strip */}
+      {data && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
-          Key Performance Indicators
-        </h2>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '1rem',
-          }}
-        >
-          {['Submissions', 'Awards', 'Award Rate', 'Total Awarded', 'Median Time-to-Award', 'Avg Award Size'].map(
-            (kpi) => (
-              <div
-                key={kpi}
-                style={{
-                  backgroundColor: '#fff',
-                  padding: '1.5rem',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  border: '1px solid #e0e0e0',
-                }}
-              >
-                <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.5rem' }}>{kpi}</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#1a1a1a' }}>--</div>
-                <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.5rem' }}>Sparkline placeholder</div>
-              </div>
-            )
-          )}
-        </div>
-      </div>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Key Performance Indicators
+          </h2>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <KPITile
+              title="Submissions"
+              value={data.summary.submissions}
+              sparklineData={getSparklineData('submissions')}
+              delay={0.1}
+            />
+            <KPITile
+              title="Awards"
+              value={data.summary.awards}
+              sparklineData={getSparklineData('awards')}
+              delay={0.2}
+            />
+            <KPITile
+              title="Award Rate"
+              value={`${data.summary.awardRate.toFixed(1)}%`}
+              sparklineData={getSparklineData('awards').map((a, i) => {
+                const s = getSparklineData('submissions')[i];
+                return s > 0 ? (a / s) * 100 : 0;
+              })}
+              delay={0.3}
+            />
+            <KPITile
+              title="Total Awarded"
+              value={formatCurrency(data.summary.totalAwardedAmount)}
+              sparklineData={getSparklineData('awardedAmount')}
+              delay={0.4}
+            />
+            <KPITile
+              title="Median Time-to-Award"
+              value={data.summary.medianTimeToAward ? `${data.summary.medianTimeToAward} days` : 'N/A'}
+              delay={0.5}
+            />
+            <KPITile
+              title="Avg Award Size"
+              value={formatCurrency(data.summary.avgAwardSize)}
+              delay={0.6}
+            />
+          </div>
+        </motion.div>
+      )}
 
       {/* Pipeline Over Time Placeholder */}
       <div>
@@ -438,7 +609,7 @@ export function InsightsPage() {
           Status Flow Funnel Placeholder
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

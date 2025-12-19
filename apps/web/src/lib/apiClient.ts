@@ -122,6 +122,21 @@ export const api = {
     return fetchApi<Array<{ status: string; count: number }>>('/api/metrics/status-breakdown');
   },
 
+  // Time Series
+  async getTimeSeries(params?: { months?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.months) {
+      searchParams.append('months', String(params.months));
+    }
+    const queryString = searchParams.toString();
+    return fetchApi<Array<{
+      month: string;
+      submissions: number;
+      awards: number;
+      awardedAmount: number;
+    }>>(`/api/metrics/timeseries${queryString ? `?${queryString}` : ''}`);
+  },
+
   // Grants
   async getGrants(params?: {
     department?: number;

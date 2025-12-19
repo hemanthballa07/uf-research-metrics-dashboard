@@ -19,21 +19,12 @@ interface StatusBreakdown {
   count: number;
 }
 
-// Temporary mock data for charts (will be replaced with API calls in next slice)
-const mockTimeSeriesData = [
-  { month: '2024-01', submissions: 8, awards: 3, awardedAmount: 450000 },
-  { month: '2024-02', submissions: 12, awards: 5, awardedAmount: 620000 },
-  { month: '2024-03', submissions: 10, awards: 4, awardedAmount: 580000 },
-  { month: '2024-04', submissions: 15, awards: 6, awardedAmount: 750000 },
-  { month: '2024-05', submissions: 11, awards: 5, awardedAmount: 690000 },
-  { month: '2024-06', submissions: 9, awards: 4, awardedAmount: 520000 },
-  { month: '2024-07', submissions: 13, awards: 7, awardedAmount: 810000 },
-  { month: '2024-08', submissions: 14, awards: 6, awardedAmount: 780000 },
-  { month: '2024-09', submissions: 10, awards: 5, awardedAmount: 640000 },
-  { month: '2024-10', submissions: 12, awards: 6, awardedAmount: 720000 },
-  { month: '2024-11', submissions: 11, awards: 5, awardedAmount: 680000 },
-  { month: '2024-12', submissions: 9, awards: 4, awardedAmount: 550000 },
-];
+interface TimeSeriesData {
+  month: string;
+  submissions: number;
+  awards: number;
+  awardedAmount: number;
+}
 
 const mockSponsorTypeData = [
   { sponsorType: 'Federal', awardedAmount: 2500000, count: 35 },
@@ -45,6 +36,7 @@ const mockSponsorTypeData = [
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
+  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +44,14 @@ export function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const [metricsData, breakdownData] = await Promise.all([
+      const [metricsData, breakdownData, timeseriesData] = await Promise.all([
         api.getMetricsSummary(),
         api.getStatusBreakdown(),
+        api.getTimeSeries({ months: 12 }),
       ]);
       setMetrics(metricsData);
       setStatusBreakdown(breakdownData);
+      setTimeSeriesData(timeseriesData);
     } catch (err) {
       let message = 'Failed to load metrics';
       if (err instanceof NetworkError) {
@@ -432,27 +426,29 @@ export function DashboardPage() {
           )}
 
           {/* Time Series Chart */}
-          <div
-            style={{
-              backgroundColor: '#fff',
-              padding: '1.5rem',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              border: '1px solid #e0e0e0',
-            }}
-          >
-            <h3
+          {timeSeriesData.length > 0 && (
+            <div
               style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#333',
-                marginBottom: '1rem',
+                backgroundColor: '#fff',
+                padding: '1.5rem',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                border: '1px solid #e0e0e0',
               }}
             >
-              Submissions vs Awards Over Time
-            </h3>
-            <TimeSeriesChart data={mockTimeSeriesData} />
-          </div>
+              <h3
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  color: '#333',
+                  marginBottom: '1rem',
+                }}
+              >
+                Submissions vs Awards Over Time
+              </h3>
+              <TimeSeriesChart data={timeSeriesData} />
+            </div>
+          )}
         </div>
 
         {/* Sponsor Type Bar Chart */}

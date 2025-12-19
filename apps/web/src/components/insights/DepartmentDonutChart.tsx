@@ -53,16 +53,16 @@ export function DepartmentDonutChart({ data, onDepartmentClick }: DepartmentDonu
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <ResponsiveContainer width="100%" height={350}>
+      <ResponsiveContainer width="100%" height={280}>
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-            outerRadius={120}
-            innerRadius={60}
+            label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+            outerRadius={90}
+            innerRadius={50}
             fill="#8884d8"
             dataKey="value"
             animationDuration={800}
@@ -80,10 +80,12 @@ export function DepartmentDonutChart({ data, onDepartmentClick }: DepartmentDonu
               formatCurrency(value),
               `Awarded Amount (${((value / total) * 100).toFixed(1)}%)`,
             ]}
+            contentStyle={{ fontSize: '0.75rem', padding: '0.5rem' }}
           />
           <Legend
             verticalAlign="bottom"
-            height={36}
+            height={32}
+            wrapperStyle={{ fontSize: '0.75rem' }}
             formatter={(value) => value}
           />
         </PieChart>

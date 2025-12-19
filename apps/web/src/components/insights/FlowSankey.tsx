@@ -53,7 +53,7 @@ export function FlowSankey({ data }: FlowSankeyProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', padding: '1.5rem 0' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '0.5rem 0' }}
     >
       {stages.map((stage, idx) => {
         const prevStage = idx > 0 ? stages[idx - 1] : null;
@@ -69,21 +69,21 @@ export function FlowSankey({ data }: FlowSankeyProps) {
             transition={{ duration: 0.5, delay: idx * 0.15 }}
             style={{ position: 'relative' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '1rem', fontWeight: '600', color: '#333' }}>{stage.label}</span>
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', color: '#666', fontWeight: '500' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#333' }}>{stage.label}</span>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: '500' }}>
                   {stage.value.toLocaleString()} ({total > 0 ? ((stage.value / total) * 100).toFixed(1) : 0}%)
                 </span>
                 {conversionRate !== null && (
-                  <span style={{ fontSize: '0.85rem', color: '#999', fontStyle: 'italic' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#999', fontStyle: 'italic' }}>
                     {conversionRate}% conversion
                   </span>
                 )}
               </div>
             </div>
 
-            <div style={{ position: 'relative', height: '60px', borderRadius: '8px', overflow: 'hidden', background: '#f0f0f0' }}>
+            <div style={{ position: 'relative', height: '45px', borderRadius: '6px', overflow: 'hidden', background: '#f0f0f0' }}>
               {stage.next > 0 && (
                 <motion.div
                   initial={{ width: 0 }}
@@ -117,8 +117,8 @@ export function FlowSankey({ data }: FlowSankeyProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#fff',
-                  fontWeight: '700',
-                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
                   zIndex: 2,
                 }}
               >

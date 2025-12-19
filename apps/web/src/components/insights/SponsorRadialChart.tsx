@@ -52,23 +52,23 @@ export function SponsorRadialChart({ data }: SponsorRadialChartProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={280}>
         <RadialBarChart
           cx="50%"
           cy="50%"
-          innerRadius="20%"
-          outerRadius="90%"
-          barSize={20}
+          innerRadius="30%"
+          outerRadius="85%"
+          barSize={12}
           data={chartData}
           startAngle={90}
           endAngle={-270}
         >
           <RadialBar
             minAngle={5}
-            label={{ position: 'insideStart', fill: '#fff', fontSize: 12 }}
-            background
+            label={false}
+            background={{ fill: '#f0f0f0' }}
             dataKey="value"
-            animationDuration={1000}
+            animationDuration={800}
           >
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -82,13 +82,18 @@ export function SponsorRadialChart({ data }: SponsorRadialChartProps) {
               return value;
             }}
             labelFormatter={(label) => label}
+            contentStyle={{ fontSize: '0.75rem', padding: '0.5rem' }}
           />
           <Legend
-            iconSize={12}
+            iconSize={10}
             layout="vertical"
             verticalAlign="middle"
             align="right"
-            formatter={(value, entry: any) => `${value}: ${formatCurrency(entry.payload.amount)}`}
+            wrapperStyle={{ fontSize: '0.75rem', paddingLeft: '1rem' }}
+            formatter={(value, entry: any) => {
+              const shortName = value.length > 15 ? `${value.substring(0, 15)}...` : value;
+              return `${shortName}: ${formatCurrency(entry.payload.amount)}`;
+            }}
           />
         </RadialBarChart>
       </ResponsiveContainer>

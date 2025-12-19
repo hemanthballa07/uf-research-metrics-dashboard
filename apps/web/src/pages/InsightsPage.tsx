@@ -404,10 +404,10 @@ export function InsightsPage() {
         >
           <h2
             style={{
-              fontSize: '1.25rem',
+              fontSize: '1.1rem',
               fontWeight: '600',
               color: '#333',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
             }}
           >
             Key Performance Indicators
@@ -469,10 +469,10 @@ export function InsightsPage() {
         >
           <h2
             style={{
-              fontSize: '1.25rem',
+              fontSize: '1.1rem',
               fontWeight: '600',
               color: '#333',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
             }}
           >
             Pipeline Over Time
@@ -480,9 +480,9 @@ export function InsightsPage() {
           <div
             style={{
               backgroundColor: '#fff',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               border: '1px solid #e0e0e0',
             }}
           >
@@ -535,9 +535,9 @@ export function InsightsPage() {
           <div
             style={{
               backgroundColor: '#fff',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               border: '1px solid #e0e0e0',
             }}
           >
@@ -555,10 +555,10 @@ export function InsightsPage() {
         >
           <h2
             style={{
-              fontSize: '1.25rem',
+              fontSize: '1.1rem',
               fontWeight: '600',
               color: '#333',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
             }}
           >
             Sponsor Breakdown
@@ -566,9 +566,9 @@ export function InsightsPage() {
           <div
             style={{
               backgroundColor: '#fff',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               border: '1px solid #e0e0e0',
             }}
           >
@@ -586,10 +586,10 @@ export function InsightsPage() {
         >
           <h2
             style={{
-              fontSize: '1.25rem',
+              fontSize: '1.1rem',
               fontWeight: '600',
               color: '#333',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
             }}
           >
             Department Comparison
@@ -597,9 +597,9 @@ export function InsightsPage() {
           <div
             style={{
               backgroundColor: '#fff',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               border: '1px solid #e0e0e0',
             }}
           >
@@ -620,10 +620,10 @@ export function InsightsPage() {
         >
           <h2
             style={{
-              fontSize: '1.25rem',
+              fontSize: '1.1rem',
               fontWeight: '600',
               color: '#333',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
             }}
           >
             Grant Flow
@@ -631,9 +631,9 @@ export function InsightsPage() {
           <div
             style={{
               backgroundColor: '#fff',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               border: '1px solid #e0e0e0',
             }}
           >

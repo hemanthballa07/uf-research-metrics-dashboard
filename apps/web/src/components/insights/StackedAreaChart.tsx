@@ -32,8 +32,8 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <ResponsiveContainer width="100%" height={350}>
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+      <ResponsiveContainer width="100%" height={280}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 20, left: 8, bottom: 8 }}>
           <defs>
             <linearGradient id="colorSubmitted" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#4a9eff" stopOpacity={1} />
@@ -61,20 +61,22 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
             dataKey="month"
             tickFormatter={formatMonth}
             stroke="#666"
-            style={{ fontSize: '0.75rem' }}
+            style={{ fontSize: '0.7rem' }}
+            tick={{ fill: '#666' }}
           />
-          <YAxis stroke="#666" style={{ fontSize: '0.75rem' }} />
+          <YAxis stroke="#666" style={{ fontSize: '0.7rem' }} tick={{ fill: '#666' }} />
           <Tooltip
             labelFormatter={(label) => formatMonth(label)}
             formatter={(value: number) => value}
+            contentStyle={{ fontSize: '0.75rem', padding: '0.5rem' }}
           />
-          <Legend />
+          <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.5rem' }} />
           <Area
             type="monotone"
             dataKey="Submitted"
             stackId="1"
             stroke="#4a9eff"
-            strokeWidth={2.5}
+            strokeWidth={2}
             fill="url(#colorSubmitted)"
             animationDuration={1000}
             animationBegin={0}
@@ -84,7 +86,7 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
             dataKey="Under Review"
             stackId="1"
             stroke="#ffa500"
-            strokeWidth={2.5}
+            strokeWidth={2}
             fill="url(#colorUnderReview)"
             animationDuration={1000}
             animationBegin={100}
@@ -94,7 +96,7 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
             dataKey="Awarded"
             stackId="1"
             stroke="#28a745"
-            strokeWidth={2.5}
+            strokeWidth={2}
             fill="url(#colorAwarded)"
             animationDuration={1000}
             animationBegin={200}
@@ -104,7 +106,7 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
             dataKey="Declined"
             stackId="1"
             stroke="#dc3545"
-            strokeWidth={2.5}
+            strokeWidth={2}
             fill="url(#colorDeclined)"
             animationDuration={1000}
             animationBegin={300}

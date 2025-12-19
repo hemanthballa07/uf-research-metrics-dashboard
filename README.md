@@ -249,9 +249,19 @@ uf-research-metrics-platform/
 *Interactive dashboard showing grant metrics, filtering capabilities, and faculty leaderboard rankings.*
 
 **What reviewers should try:**
-- **Dashboard**: View KPI cards and status breakdown visualization
+- **Dashboard**: View KPI cards, status breakdown visualization, and Visual Insights charts
 - **Grants page**: Filter by status and department, then click a grant row to see the detail drawer
 - **Leaderboard**: Switch department filter to see ranked faculty by awarded amount
+
+## Visual Insights
+
+The dashboard includes interactive charts for enhanced data interpretation:
+
+- **Grant Status Distribution**: Donut chart showing breakdown of grant statuses
+- **Submissions vs Awards Over Time**: Time-series line chart tracking monthly trends
+- **Awarded Amount by Sponsor Type**: Bar chart comparing funding by sponsor category
+
+Charts include smooth animations and responsive layouts. See [Visual Insights screenshot](./docs/assets/visual-insights.png) for reference.
 
 ## Documentation
 

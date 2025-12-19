@@ -4,6 +4,11 @@ import { api, ApiClientError, NetworkError } from '../lib/apiClient';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorDisplay } from '../components/ErrorDisplay';
 import { KPITile } from '../components/insights/KPITile';
+import { StackedAreaChart } from '../components/insights/StackedAreaChart';
+import { ActivityHeatmap } from '../components/insights/ActivityHeatmap';
+import { SponsorBarChart } from '../components/insights/SponsorBarChart';
+import { DepartmentComparison } from '../components/insights/DepartmentComparison';
+import { FlowFunnel } from '../components/insights/FlowFunnel';
 
 interface InsightsData {
   summary: {
@@ -65,6 +70,8 @@ export function InsightsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null);
+  const [heatmapMetric, setHeatmapMetric] = useState<'submissions' | 'awards' | 'awardedAmount'>('submissions');
 
   // Load departments for dropdown
   useEffect(() => {
@@ -460,155 +467,188 @@ export function InsightsPage() {
         </motion.div>
       )}
 
-      {/* Pipeline Over Time Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* Pipeline Over Time */}
+      {data && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          Pipeline Over Time
-        </h2>
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            minHeight: '300px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#999',
-          }}
-        >
-          Stacked Area Chart Placeholder
-        </div>
-      </div>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Pipeline Over Time
+          </h2>
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <StackedAreaChart
+              data={data.timeseries.map((point) => ({
+                month: point.month,
+                submitted: point.statusCounts.submitted,
+                under_review: point.statusCounts.under_review,
+                awarded: point.statusCounts.awarded,
+                declined: point.statusCounts.declined,
+              }))}
+            />
+          </div>
+        </motion.div>
+      )}
 
-      {/* Heatmap Calendar Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* Grant Activity Heatmap */}
+      {data && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
         >
-          Grant Activity Heatmap
-        </h2>
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            minHeight: '200px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#999',
-          }}
-        >
-          Heatmap Calendar Placeholder
-        </div>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: '#333',
+                margin: 0,
+              }}
+            >
+              Grant Activity Heatmap
+            </h2>
+            <select
+              value={heatmapMetric}
+              onChange={(e) => setHeatmapMetric(e.target.value as 'submissions' | 'awards' | 'awardedAmount')}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '0.875rem',
+              }}
+            >
+              <option value="submissions">Submissions</option>
+              <option value="awards">Awards</option>
+              <option value="awardedAmount">Awarded Amount</option>
+            </select>
+          </div>
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <ActivityHeatmap data={data.dailyActivity} metric={heatmapMetric} />
+          </div>
+        </motion.div>
+      )}
 
-      {/* Sponsor Treemap Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* Sponsor Breakdown */}
+      {data && data.sponsorBreakdown.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         >
-          Sponsor Breakdown
-        </h2>
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            minHeight: '300px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#999',
-          }}
-        >
-          Treemap / Bar Chart Placeholder
-        </div>
-      </div>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Sponsor Breakdown
+          </h2>
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <SponsorBarChart data={data.sponsorBreakdown} />
+          </div>
+        </motion.div>
+      )}
 
-      {/* Department Comparison Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* Department Comparison */}
+      {data && data.departmentBreakdown.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
         >
-          Department Comparison
-        </h2>
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            minHeight: '300px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#999',
-          }}
-        >
-          Ranked Bar Chart + Drill-down Panel Placeholder
-        </div>
-      </div>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Department Comparison
+          </h2>
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <DepartmentComparison
+              data={data.departmentBreakdown}
+              onDepartmentClick={setSelectedDepartment}
+              selectedDepartment={selectedDepartment}
+            />
+          </div>
+        </motion.div>
+      )}
 
-      {/* Flow Visualization Placeholder */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#333',
-            marginBottom: '1rem',
-          }}
+      {/* Grant Flow */}
+      {data && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
         >
-          Grant Flow
-        </h2>
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            minHeight: '200px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#999',
-          }}
-        >
-          Status Flow Funnel Placeholder
-        </div>
-      </div>
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: '#333',
+              marginBottom: '1rem',
+            }}
+          >
+            Grant Flow
+          </h2>
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <FlowFunnel data={data.funnel} />
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

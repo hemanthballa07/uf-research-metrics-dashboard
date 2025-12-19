@@ -137,6 +137,20 @@ export const api = {
     }>>(`/api/metrics/timeseries${queryString ? `?${queryString}` : ''}`);
   },
 
+  // Awards by Sponsor Type
+  async getAwardsBySponsorType(params?: { months?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.months) {
+      searchParams.append('months', String(params.months));
+    }
+    const queryString = searchParams.toString();
+    return fetchApi<Array<{
+      sponsorType: string;
+      awardedAmount: number;
+      count: number;
+    }>>(`/api/metrics/awards-by-sponsor-type${queryString ? `?${queryString}` : ''}`);
+  },
+
   // Grants
   async getGrants(params?: {
     department?: number;

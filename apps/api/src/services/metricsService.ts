@@ -173,3 +173,46 @@ export async function getTimeSeries(months: number = 12): Promise<TimeSeriesData
     throw new DatabaseError('Failed to fetch time series data', error);
   }
 }
+
+export interface AwardsBySponsorTypeDataPoint {
+  sponsorType: string;
+  awardedAmount: number;
+  count: number;
+}
+
+export async function getAwardsBySponsorType(months: number = 12): Promise<AwardsBySponsorTypeDataPoint[]> {
+  try {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - months);
+
+    // Group awarded grants by sponsor type
+    // Use sponsorType if available, otherwise fall back to sponsor name
+    // This handles cases where sponsorType might be NULL
+    const results = await prisma.$queryRaw<Array<{
+      grouping_key: string;
+      awarded_amount: number | null;
+      award_count: bigint;
+    }>>`
+      SELECT 
+        COALESCE(s."sponsorType", s.name) AS grouping_key,
+        SUM(g.amount)::numeric AS awarded_amount,
+        COUNT(*)::bigint AS award_count
+      FROM grants g
+      INNER JOIN sponsors s ON g."sponsorId" = s.id
+      WHERE g.status = 'awarded'
+        AND g."awardedAt" >= ${startDate}
+        AND g."awardedAt" IS NOT NULL
+      GROUP BY COALESCE(s."sponsorType", s.name)
+      ORDER BY awarded_amount DESC
+    `;
+
+    return results.map((row) => ({
+      sponsorType: row.grouping_key,
+      awardedAmount: row.awarded_amount ? Number(row.awarded_amount) : 0,
+      count: Number(row.award_count),
+    }));
+  } catch (error) {
+    throw new DatabaseError('Failed to fetch awards by sponsor type', error);
+  }
+}

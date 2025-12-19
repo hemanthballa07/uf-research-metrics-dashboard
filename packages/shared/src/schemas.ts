@@ -91,3 +91,7 @@ export const timeseriesQuerySchema = z.object({
   months: z.coerce.number().int().min(1).max(36).default(12),
 });
 
+export const awardsBySponsorTypeQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(36).default(12),
+});
+

@@ -26,17 +26,17 @@ interface TimeSeriesData {
   awardedAmount: number;
 }
 
-const mockSponsorTypeData = [
-  { sponsorType: 'Federal', awardedAmount: 2500000, count: 35 },
-  { sponsorType: 'State', awardedAmount: 800000, count: 12 },
-  { sponsorType: 'Foundation', awardedAmount: 600000, count: 8 },
-  { sponsorType: 'Corporate', awardedAmount: 400000, count: 5 },
-];
+interface SponsorTypeData {
+  sponsorType: string;
+  awardedAmount: number;
+  count: number;
+}
 
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
+  const [sponsorTypeData, setSponsorTypeData] = useState<SponsorTypeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,14 +44,16 @@ export function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const [metricsData, breakdownData, timeseriesData] = await Promise.all([
+      const [metricsData, breakdownData, timeseriesData, sponsorTypeData] = await Promise.all([
         api.getMetricsSummary(),
         api.getStatusBreakdown(),
         api.getTimeSeries({ months: 12 }),
+        api.getAwardsBySponsorType({ months: 12 }),
       ]);
       setMetrics(metricsData);
       setStatusBreakdown(breakdownData);
       setTimeSeriesData(timeseriesData);
+      setSponsorTypeData(sponsorTypeData);
     } catch (err) {
       let message = 'Failed to load metrics';
       if (err instanceof NetworkError) {
@@ -452,28 +454,30 @@ export function DashboardPage() {
         </div>
 
         {/* Sponsor Type Bar Chart */}
-        <div
-          style={{
-            backgroundColor: '#fff',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            border: '1px solid #e0e0e0',
-            marginTop: '1.5rem',
-          }}
-        >
-          <h3
+        {sponsorTypeData.length > 0 && (
+          <div
             style={{
-              fontSize: '1rem',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '1rem',
+              backgroundColor: '#fff',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: '1px solid #e0e0e0',
+              marginTop: '1.5rem',
             }}
           >
-            Awarded Amount by Sponsor Type
-          </h3>
-          <SponsorTypeBarChart data={mockSponsorTypeData} />
-        </div>
+            <h3
+              style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#333',
+                marginBottom: '1rem',
+              }}
+            >
+              Awarded Amount by Sponsor Type
+            </h3>
+            <SponsorTypeBarChart data={sponsorTypeData} />
+          </div>
+        )}
       </div>
     </div>
   );

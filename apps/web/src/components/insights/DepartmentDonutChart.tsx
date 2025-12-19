@@ -53,21 +53,23 @@ export function DepartmentDonutChart({ data, onDepartmentClick }: DepartmentDonu
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
-            outerRadius={90}
-            innerRadius={50}
+            label={false}
+            outerRadius={70}
+            innerRadius={40}
             fill="#8884d8"
             dataKey="value"
             animationDuration={800}
-            onClick={(data: { departmentId: number }) => {
-              onDepartmentClick?.(data.departmentId);
+            onClick={(data: any) => {
+              if (data && data.departmentId) {
+                onDepartmentClick?.(data.departmentId);
+              }
             }}
             style={{ cursor: onDepartmentClick ? 'pointer' : 'default' }}
           >
@@ -76,17 +78,18 @@ export function DepartmentDonutChart({ data, onDepartmentClick }: DepartmentDonu
             ))}
           </Pie>
           <Tooltip
-            formatter={(value: number) => [
+            formatter={(value: number, name: string, props: any) => [
               formatCurrency(value),
-              `Awarded Amount (${((value / total) * 100).toFixed(1)}%)`,
+              `${props.payload.name} (${((value / total) * 100).toFixed(1)}%)`,
             ]}
             contentStyle={{ fontSize: '0.75rem', padding: '0.5rem' }}
           />
           <Legend
             verticalAlign="bottom"
-            height={32}
-            wrapperStyle={{ fontSize: '0.75rem' }}
+            height={28}
+            wrapperStyle={{ fontSize: '0.7rem' }}
             formatter={(value) => value}
+            iconSize={10}
           />
         </PieChart>
       </ResponsiveContainer>

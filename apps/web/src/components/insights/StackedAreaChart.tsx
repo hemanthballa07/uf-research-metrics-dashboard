@@ -32,7 +32,7 @@ export function StackedAreaChart({ data }: StackedAreaChartProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={240}>
         <AreaChart data={chartData} margin={{ top: 8, right: 20, left: 8, bottom: 8 }}>
           <defs>
             <linearGradient id="colorSubmitted" x1="0" y1="0" x2="0" y2="1">

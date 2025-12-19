@@ -6,7 +6,7 @@ import { ErrorDisplay } from '../components/ErrorDisplay';
 import { KPITile } from '../components/insights/KPITile';
 import { StackedAreaChart } from '../components/insights/StackedAreaChart';
 import { ActivityHeatmap } from '../components/insights/ActivityHeatmap';
-import { SponsorTreemap } from '../components/insights/SponsorTreemap';
+import { SponsorRadialChart } from '../components/insights/SponsorRadialChart';
 import { DepartmentDonutChart } from '../components/insights/DepartmentDonutChart';
 import { FlowSankey } from '../components/insights/FlowSankey';
 
@@ -572,7 +572,7 @@ export function InsightsPage() {
               border: '1px solid #e0e0e0',
             }}
           >
-            <SponsorTreemap data={data.sponsorBreakdown} />
+            <SponsorRadialChart data={data.sponsorBreakdown} />
           </div>
         </motion.div>
       )}

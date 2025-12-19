@@ -53,7 +53,7 @@ export function FlowSankey({ data }: FlowSankeyProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '2rem', padding: '1rem 0' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', padding: '1.5rem 0' }}
     >
       {stages.map((stage, idx) => {
         const prevStage = idx > 0 ? stages[idx - 1] : null;

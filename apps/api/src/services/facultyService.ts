@@ -33,13 +33,13 @@ export async function getFacultyLeaderboard(
             f.name AS faculty_name,
             d.name AS department_name,
             COALESCE(SUM(g.amount), 0)::numeric AS total_awarded
-          FROM faculty f
-          INNER JOIN departments d ON f.department_id = d.id
-          LEFT JOIN grants g ON g.pi_id = f.id
+          FROM "faculty" f
+          INNER JOIN "departments" d ON f."departmentId" = d.id
+          LEFT JOIN grants g ON g."piId" = f.id
             AND g.status = 'awarded'
-            AND g.awarded_at >= ${twelveMonthsAgo}
-            AND g.department_id = ${params.department}
-          WHERE f.department_id = ${params.department}
+            AND g."awardedAt" >= ${twelveMonthsAgo}
+            AND g."departmentId" = ${params.department}
+          WHERE f."departmentId" = ${params.department}
           GROUP BY f.id, f.name, d.name
         )
         SELECT 
@@ -61,11 +61,11 @@ export async function getFacultyLeaderboard(
             f.name AS faculty_name,
             d.name AS department_name,
             COALESCE(SUM(g.amount), 0)::numeric AS total_awarded
-          FROM faculty f
-          INNER JOIN departments d ON f.department_id = d.id
-          LEFT JOIN grants g ON g.pi_id = f.id
+          FROM "faculty" f
+          INNER JOIN "departments" d ON f."departmentId" = d.id
+          LEFT JOIN grants g ON g."piId" = f.id
             AND g.status = 'awarded'
-            AND g.awarded_at >= ${twelveMonthsAgo}
+            AND g."awardedAt" >= ${twelveMonthsAgo}
           GROUP BY f.id, f.name, d.name
         )
         SELECT 

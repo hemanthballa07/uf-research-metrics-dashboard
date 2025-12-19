@@ -46,13 +46,13 @@ export async function getMetricsSummary(): Promise<MetricsSummary> {
     const medianResult = await prisma.$queryRaw<Array<{ median_days: number | null }>>`
       SELECT 
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY 
-          EXTRACT(EPOCH FROM (awarded_at - submitted_at)) / 86400
+          EXTRACT(EPOCH FROM ("awardedAt" - "submittedAt")) / 86400
         ) AS median_days
       FROM grants
       WHERE status = 'awarded'
-        AND submitted_at IS NOT NULL
-        AND awarded_at IS NOT NULL
-        AND awarded_at >= ${twelveMonthsAgo}
+        AND "submittedAt" IS NOT NULL
+        AND "awardedAt" IS NOT NULL
+        AND "awardedAt" >= ${twelveMonthsAgo}
     `;
 
     const medianTimeToAward =

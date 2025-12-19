@@ -1,6 +1,8 @@
 # UF Research Metrics Platform
 
-Internal web platform for a university Office of Research to track grant activity, faculty productivity, and research metrics.
+**Purpose:** Internal analytics platform for University Office of Research to track grant activity, faculty productivity, and institutional research metrics.
+
+**Problem Solved:** Provides real-time visibility into grant submissions, award rates, faculty performance rankings, and research metrics. Enables data-driven decision making for research administration.
 
 **Quick Start:** See [Getting Started](#getting-started) below. For Docker: `docker compose up` then run migrations. For local: ensure PostgreSQL is running, copy `.env.example` to `.env`, run `pnpm db:migrate` and `pnpm db:seed`, then `pnpm dev`.
 
@@ -207,6 +209,26 @@ uf-research-metrics-platform/
 ├── data/                 # Sample data files
 └── docs/                 # Documentation
 ```
+
+## Design Decisions
+
+### Prisma ORM + Raw SQL
+- **Prisma** handles schema migrations, type safety, and common CRUD operations
+- **Raw SQL** (`$queryRaw`) used for complex analytics requiring window functions (`RANK() OVER`, `PERCENTILE_CONT`)
+- This hybrid approach balances developer experience with SQL performance and correctness
+
+### Text/Plain CSV Ingestion
+- Accepts CSV as `text/plain` (not `multipart/form-data`) for simplicity and reliability
+- Handles complex CSV structures (quoted fields, embedded commas) with custom parser
+- Zod validation ensures data correctness before database operations
+- Detailed error reporting includes row numbers and field-level validation errors
+
+### Correctness Prioritization
+- Foreign key constraints prevent orphaned records (`onDelete: Restrict`)
+- Uniqueness constraints enforce data integrity (department names, faculty emails)
+- Application-level validation complements database constraints
+- SQL queries use proper NULL handling (`COALESCE`) and division-by-zero protection
+- Date range validation prevents invalid temporal data
 
 ## Documentation
 

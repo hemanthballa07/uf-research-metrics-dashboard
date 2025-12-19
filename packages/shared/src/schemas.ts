@@ -87,3 +87,7 @@ export const facultyLeaderboardQuerySchema = z.object({
   department: z.coerce.number().int().positive().optional(),
 });
 
+export const timeseriesQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(36).default(12),
+});
+

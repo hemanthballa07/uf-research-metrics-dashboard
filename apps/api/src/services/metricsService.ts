@@ -101,3 +101,75 @@ export async function getStatusBreakdown() {
     throw new DatabaseError('Failed to fetch status breakdown', error);
   }
 }
+
+export interface TimeSeriesDataPoint {
+  month: string; // Format: "YYYY-MM"
+  submissions: number;
+  awards: number;
+  awardedAmount: number;
+}
+
+export async function getTimeSeries(months: number = 12): Promise<TimeSeriesDataPoint[]> {
+  try {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setMonth(startDate.getMonth() - months);
+
+    // Generate complete month series using generate_series
+    // Then LEFT JOIN with actual grant data to include months with zero values
+    const results = await prisma.$queryRaw<Array<{
+      month: string;
+      submissions: bigint;
+      awards: bigint;
+      awarded_amount: number | null;
+    }>>`
+      WITH month_series AS (
+        SELECT 
+          TO_CHAR(month_start, 'YYYY-MM') AS month
+        FROM generate_series(
+          DATE_TRUNC('month', ${startDate}::timestamp),
+          DATE_TRUNC('month', ${now}::timestamp),
+          '1 month'::interval
+        ) AS month_start
+      ),
+      submissions_by_month AS (
+        SELECT 
+          TO_CHAR(DATE_TRUNC('month', "submittedAt"), 'YYYY-MM') AS month,
+          COUNT(*)::bigint AS count
+        FROM grants
+        WHERE "submittedAt" >= ${startDate}
+          AND "submittedAt" IS NOT NULL
+        GROUP BY DATE_TRUNC('month', "submittedAt")
+      ),
+      awards_by_month AS (
+        SELECT 
+          TO_CHAR(DATE_TRUNC('month', "awardedAt"), 'YYYY-MM') AS month,
+          COUNT(*)::bigint AS count,
+          SUM(amount)::numeric AS total_amount
+        FROM grants
+        WHERE status = 'awarded'
+          AND "awardedAt" >= ${startDate}
+          AND "awardedAt" IS NOT NULL
+        GROUP BY DATE_TRUNC('month', "awardedAt")
+      )
+      SELECT 
+        ms.month,
+        COALESCE(sbm.count, 0)::bigint AS submissions,
+        COALESCE(abm.count, 0)::bigint AS awards,
+        COALESCE(abm.total_amount, 0)::numeric AS awarded_amount
+      FROM month_series ms
+      LEFT JOIN submissions_by_month sbm ON ms.month = sbm.month
+      LEFT JOIN awards_by_month abm ON ms.month = abm.month
+      ORDER BY ms.month ASC
+    `;
+
+    return results.map((row) => ({
+      month: row.month,
+      submissions: Number(row.submissions),
+      awards: Number(row.awards),
+      awardedAmount: row.awarded_amount ? Number(row.awarded_amount) : 0,
+    }));
+  } catch (error) {
+    throw new DatabaseError('Failed to fetch time series data', error);
+  }
+}

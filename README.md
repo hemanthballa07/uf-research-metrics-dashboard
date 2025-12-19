@@ -6,6 +6,18 @@
 
 **Quick Start:** See [Getting Started](#getting-started) below. For Docker: `docker compose up` then run migrations. For local: ensure PostgreSQL is running, copy `.env.example` to `.env`, run `pnpm db:migrate` and `pnpm db:seed`, then `pnpm dev`.
 
+## Relevance to University Office of Research
+
+This platform directly addresses core operational needs of a University Office of Research:
+
+**Research Metrics Tracking:** Provides institutional-level visibility into grant submission volumes, award rates, and funding trends over time. Enables administrators to identify patterns, benchmark performance, and allocate resources effectively.
+
+**Grant Data Management:** Centralizes grant information across departments, sponsors, and faculty members. Supports filtering, searching, and exporting capabilities for reporting and analysis. CSV ingestion allows bulk data updates from existing systems.
+
+**Administrative Decision-Making:** Faculty leaderboard rankings help identify high-performing researchers and departments. Median time-to-award metrics inform process improvements. Status breakdowns highlight bottlenecks in the grant lifecycle.
+
+**Long-Term Maintainability:** Built with TypeScript for type safety, Prisma for schema management, and comprehensive documentation. Docker Compose enables consistent deployment across environments. Clean architecture patterns ensure the codebase remains maintainable as requirements evolve.
+
 ## Architecture
 
 Monorepo structure:
@@ -230,11 +242,17 @@ uf-research-metrics-platform/
 - SQL queries use proper NULL handling (`COALESCE`) and division-by-zero protection
 - Date range validation prevents invalid temporal data
 
+## Demo
+
+<!-- Demo GIF placeholder - Add demo.gif to assets/ folder when available -->
+<!-- ![Platform Demo](./assets/demo.gif) -->
+
 ## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md) - System architecture and design decisions
 - [Schema](./docs/SCHEMA.md) - Database schema documentation
 - [Runbook](./docs/RUNBOOK.md) - Operations guide and troubleshooting
+- [Talking Points](./docs/TALKING_POINTS.md) - Elevator pitch and technical overview
 
 ## License
 

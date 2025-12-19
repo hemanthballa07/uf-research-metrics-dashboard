@@ -49,9 +49,10 @@ export function ActivityHeatmap({ data, metric }: ActivityHeatmapProps) {
   const getColor = (value: number) => {
     if (value === 0) return '#ebedf0';
     const intensity = Math.min(value / maxValue, 1);
-    if (intensity < 0.25) return '#c6e48b';
-    if (intensity < 0.5) return '#7bc96f';
-    if (intensity < 0.75) return '#239a3b';
+    if (intensity < 0.2) return '#c6e48b';
+    if (intensity < 0.4) return '#7bc96f';
+    if (intensity < 0.6) return '#40c463';
+    if (intensity < 0.8) return '#239a3b';
     return '#196127';
   };
 
@@ -75,14 +76,16 @@ export function ActivityHeatmap({ data, metric }: ActivityHeatmapProps) {
                 key={`${weekIdx}-${dayIdx}`}
                 onMouseEnter={() => setHoveredDate(day.date)}
                 onMouseLeave={() => setHoveredDate(null)}
-                whileHover={{ scale: 1.2, zIndex: 10 }}
+                whileHover={{ scale: 1.3, zIndex: 10 }}
                 style={{
-                  width: '12px',
-                  height: '12px',
+                  width: '13px',
+                  height: '13px',
                   backgroundColor: getColor(day.value),
-                  borderRadius: '2px',
+                  borderRadius: '3px',
                   cursor: 'pointer',
                   position: 'relative',
+                  transition: 'all 0.2s ease',
+                  boxShadow: day.value > 0 ? `0 0 0 1px ${getColor(day.value)}40` : 'none',
                 }}
                 title={`${formatDate(day.date)}: ${day.value}`}
               />

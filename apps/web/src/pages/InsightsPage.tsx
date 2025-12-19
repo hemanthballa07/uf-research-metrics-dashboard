@@ -6,9 +6,9 @@ import { ErrorDisplay } from '../components/ErrorDisplay';
 import { KPITile } from '../components/insights/KPITile';
 import { StackedAreaChart } from '../components/insights/StackedAreaChart';
 import { ActivityHeatmap } from '../components/insights/ActivityHeatmap';
-import { SponsorBarChart } from '../components/insights/SponsorBarChart';
-import { DepartmentComparison } from '../components/insights/DepartmentComparison';
-import { FlowFunnel } from '../components/insights/FlowFunnel';
+import { SponsorTreemap } from '../components/insights/SponsorTreemap';
+import { DepartmentDonutChart } from '../components/insights/DepartmentDonutChart';
+import { FlowSankey } from '../components/insights/FlowSankey';
 
 interface InsightsData {
   summary: {
@@ -572,7 +572,7 @@ export function InsightsPage() {
               border: '1px solid #e0e0e0',
             }}
           >
-            <SponsorBarChart data={data.sponsorBreakdown} />
+            <SponsorTreemap data={data.sponsorBreakdown} />
           </div>
         </motion.div>
       )}
@@ -603,10 +603,9 @@ export function InsightsPage() {
               border: '1px solid #e0e0e0',
             }}
           >
-            <DepartmentComparison
+            <DepartmentDonutChart
               data={data.departmentBreakdown}
               onDepartmentClick={setSelectedDepartment}
-              selectedDepartment={selectedDepartment}
             />
           </div>
         </motion.div>
@@ -638,7 +637,7 @@ export function InsightsPage() {
               border: '1px solid #e0e0e0',
             }}
           >
-            <FlowFunnel data={data.funnel} />
+            <FlowSankey data={data.funnel} />
           </div>
         </motion.div>
       )}

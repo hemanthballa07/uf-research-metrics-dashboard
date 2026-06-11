@@ -1,0 +1,82 @@
+# Image repositories are the ECR URLs from terraform output; tag is the git SHA (set at deploy).
+image:
+  registry: ""              # e.g. <acct>.dkr.ecr.us-east-1.amazonaws.com (set via --set)
+  tag: latest
+  pullPolicy: IfNotPresent
+  api: uf-research-metrics/api
+  web: uf-research-metrics/web
+  worker: uf-research-metrics/ingest-worker
+
+# Non-secret config (rendered into a ConfigMap). Service DNS targets the separately-installed
+# platform releases (release names redis / redpanda / jaeger in the same namespace).
+config:
+  NODE_ENV: production
+  API_PORT: "3001"
+  WORKER_METRICS_PORT: "3003"
+  REDIS_URL: redis://redis-master:6379
+  KAFKA_BROKERS: redpanda:9092
+  OTEL_TRACES_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector:4318
+  EMBED_ON_INGEST: "true"
+  ANTHROPIC_MODEL: claude-sonnet-4-6
+  # numPartitions for grant.batch.received — must be >= worker.autoscaling.maxReplicas
+  # because a Kafka consumer group can host at most one active consumer per partition.
+  GRANT_BATCH_PARTITIONS: "3"
+  # Web is built with VITE_API_URL="" → same-origin /api via the ALB (no host baked in).
+
+# Secrets are synced from AWS Secrets Manager by External Secrets Operator into this K8s Secret.
+externalSecret:
+  enabled: true
+  secretStoreName: aws-secrets
+  remoteSecretName: uf-research-metrics/demo   # the Secrets Manager secret name (per env)
+  targetSecretName: uf-research-metrics-app
+  # keys synced: DATABASE_URL, JWT_SECRET, ADMIN_PASSWORD, GRAFANA_PASSWORD, VOYAGE_API_KEY, ANTHROPIC_API_KEY
+  refreshInterval: 1h
+
+api:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  # Autoscaling off by default — opt in via values-prod.yaml. When disabled the
+  # HPA template is a no-op (no resource emitted).
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+
+web:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+worker:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  # See comment in api.autoscaling. Keep maxReplicas <= GRANT_BATCH_PARTITIONS
+  # (config block above) — extra replicas idle without partitions to consume.
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+
+ingress:
+  enabled: true
+  className: alb
+  host: ""   # ALB DNS or a custom domain; empty = host-less rule
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+serviceMonitor:
+  enabled: true   # requires the kube-prometheus-stack CRDs (separate release)
+
+# NetworkPolicy off by default — opt in via values-prod.yaml. Requires a CNI
+# that enforces NetworkPolicy (Calico/Cilium, or VPC CNI v1.14+ with
+# enable_network_policy=true). On clusters without enforcement, these resources
+# install silently but have no effect.
+networkPolicy:
+  enabled: false

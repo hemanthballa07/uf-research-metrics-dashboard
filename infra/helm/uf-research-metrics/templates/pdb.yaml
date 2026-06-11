@@ -1,0 +1,31 @@
+# PodDisruptionBudgets keep voluntary disruptions (node drains, version bumps)
+# from removing capacity below a safe floor. Always-on for api (always >= 2 replicas
+# under values-prod), gated for the worker because a PDB at minAvailable: 1 on a
+# single-replica deployment blocks every voluntary drain — at-least-once delivery
+# + idempotent upsert makes a brief worker gap safe anyway.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ufrm.fullname" . }}-api
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  minAvailable: 50%   # rounds up to 1 when replicas=2 -> drain-safe
+  selector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "api" "root" .) | nindent 6 }}
+---
+{{- $workerReplicas := .Values.worker.replicas | int -}}
+{{- if or (gt $workerReplicas 1) .Values.worker.autoscaling.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ufrm.fullname" . }}-worker
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "ingest-worker" "root" .) | nindent 6 }}
+{{- end }}

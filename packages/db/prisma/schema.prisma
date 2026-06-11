@@ -1,0 +1,236 @@
+// Prisma schema for UF Research Metrics Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [NEW] Enums
+enum GrantStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  AWARDED
+  DECLINED
+  WITHDRAWN
+}
+
+enum SponsorType {
+  FEDERAL
+  STATE
+  INDUSTRY
+  FOUNDATION
+  INTERNAL
+  OTHER
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+enum AmendmentKind {
+  NO_COST_EXTENSION
+  REBUDGET
+  SCOPE_CHANGE
+  PI_CHANGE
+  SUPPLEMENT
+  TERMINATION
+}
+
+enum BudgetPeriodStatus {
+  PROJECTED
+  ACTIVE
+  CLOSED
+}
+
+model Department {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(255)
+  faculty   Faculty[]
+  grants    Grant[]
+  users     User[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([name])
+  @@map("departments")
+}
+
+model Faculty {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(255)
+  email        String     @unique @db.VarChar(255)
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  // [MODIFIED] Explicit naming for Primary PI
+  primaryGrants Grant[] @relation("PrimaryPI")
+
+  // [NEW] Explicit M:N for Co-PIs
+  coPiGrants GrantCoPi[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([email])
+  @@map("faculty")
+}
+
+model Sponsor {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(255)
+  sponsorType SponsorType // [MODIFIED] Use Enum
+  grants      Grant[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([name, sponsorType])
+  @@index([sponsorType])
+  @@index([name])
+  @@map("sponsors")
+}
+
+model Grant {
+  id        Int     @id @default(autoincrement())
+  title     String  @db.VarChar(500)
+  // UF internal Award ID (myUFL/PeopleSoft), not the sponsor's federal number.
+  // Nullable for legacy rows ingested before the export carried it; canonical
+  // dedup key when present. VarChar(50): UF Award IDs are < ~20 chars; 50 leaves
+  // headroom for any prefixing without an unbounded text column.
+  grantNumber String? @unique @db.VarChar(50)
+  sponsorId Int
+  sponsor   Sponsor @relation(fields: [sponsorId], references: [id], onDelete: Restrict) // [MODIFIED] Added Restrict
+  piId      Int
+  pi        Faculty @relation("PrimaryPI", fields: [piId], references: [id], onDelete: Restrict) // [MODIFIED] Named relation
+
+  // [NEW] Explicit M:N
+  coPis GrantCoPi[]
+
+  amendments    GrantAmendment[]
+  budgetPeriods GrantBudgetPeriod[]
+  embedding     GrantEmbedding?
+
+  departmentId Int
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  amount       Decimal     @db.Decimal(15, 2)
+  status       GrantStatus // [MODIFIED] Use Enum
+  submittedAt  DateTime?   @db.Timestamp
+  awardedAt    DateTime?   @db.Timestamp
+  endAt        DateTime?   @db.Timestamp
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Legacy dedup for rows without a grantNumber is a PARTIAL unique index
+  // (title, piId) WHERE "grantNumber" IS NULL — created in the
+  // _grant_legacy_partial_unique migration, not representable in Prisma schema.
+  @@index([sponsorId])
+  @@index([piId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([awardedAt])
+  @@index([endAt])
+  @@map("grants")
+}
+
+// Vector embedding of a grant (Voyage voyage-3, 1024-dim). The `vector` type +
+// HNSW index live only in the SQL migration; all reads/writes use $queryRawUnsafe.
+// CASCADE (not the repo's Restrict default) is intentional: embeddings are derived data.
+model GrantEmbedding {
+  grantId   Int                         @id @map("grant_id")
+  grant     Grant                       @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  embedding Unsupported("vector(1024)")
+  model     String
+  updatedAt DateTime                    @default(now()) @map("updated_at")
+
+  @@map("grant_embeddings")
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  email        String      @unique @db.VarChar(255)
+  name         String      @db.VarChar(255)
+  passwordHash String      @db.VarChar(255)
+  role         UserRole    @default(VIEWER)
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([email])
+  @@index([departmentId])
+  @@map("users")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  action     String   @db.VarChar(100)
+  targetType String   @db.VarChar(50)
+  targetId   String   @db.VarChar(100)
+  actorId    Int
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// [NEW] Explicit Join Table
+model GrantCoPi {
+  grantId   Int
+  facultyId Int
+  grant     Grant   @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  faculty   Faculty @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@id([grantId, facultyId])
+  @@map("grant_co_pis")
+}
+
+model GrantAmendment {
+  id              Int           @id @default(autoincrement())
+  grantId         Int
+  grant           Grant         @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  amendmentNumber Int
+  kind            AmendmentKind
+  effectiveAt     DateTime      @db.Timestamp
+  amountDelta     Decimal       @default(0) @db.Decimal(15, 2)
+  notes           String?       @db.VarChar(1000)
+  createdAt       DateTime      @default(now())
+
+  @@unique([grantId, amendmentNumber])
+  @@index([grantId])
+  @@index([kind])
+  @@index([effectiveAt])
+  @@map("grant_amendments")
+}
+
+model GrantBudgetPeriod {
+  id            Int                @id @default(autoincrement())
+  grantId       Int
+  grant         Grant              @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  periodNumber  Int
+  startAt       DateTime           @db.Timestamp
+  endAt         DateTime           @db.Timestamp
+  directCosts   Decimal            @db.Decimal(15, 2)
+  indirectCosts Decimal            @db.Decimal(15, 2)
+  status        BudgetPeriodStatus
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([grantId, periodNumber])
+  @@index([grantId])
+  @@index([status])
+  @@index([startAt])
+  @@index([endAt])
+  @@map("grant_budget_periods")
+}

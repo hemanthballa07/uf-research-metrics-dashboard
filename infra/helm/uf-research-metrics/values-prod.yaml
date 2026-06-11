@@ -1,0 +1,42 @@
+# Prod overlay: autoscaling on, NetworkPolicy on, resources tuned.
+#
+# CPU-limit trade-off: keeping cpu limits set caps burst capacity per pod and
+# can introduce CFS throttling under spikes (visible in
+# `container_cpu_cfs_throttled_seconds_total`). The conservative cap (1 core)
+# is chosen because (a) the k6 daily profile peaks well under one core per
+# process, and (b) capping protects neighbour pods on the same node while HPA
+# fans out under sustained load. If p95 regresses on burst, drop the cpu
+# limit (memory limit only).
+api:
+  replicas: 2                # baseline; HPA scales 2-6
+  resources:
+    requests: { cpu: 250m, memory: 384Mi }   # raised from 100m/256Mi (component bench RSS peak 249 MB)
+    limits:   { cpu: 1,    memory: 768Mi }   # see CPU-limit trade-off note above
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+
+web:
+  replicas: 2
+
+worker:
+  replicas: 1                # consumer group of 1 at min scale; HPA scales to 3
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits:   { cpu: 1,    memory: 768Mi }
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3           # must be <= config.GRANT_BATCH_PARTITIONS (=3 in values.yaml)
+
+config:
+  NODE_ENV: production
+
+# Enable NetworkPolicy in prod. Reminder from values.yaml header: requires a
+# CNI that enforces it — silently no-ops otherwise.
+networkPolicy:
+  enabled: true
+
+externalSecret:
+  remoteSecretName: uf-research-metrics/prod

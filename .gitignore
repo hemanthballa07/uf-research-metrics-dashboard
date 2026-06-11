@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Terraform (commit .tf + .terraform.lock.hcl; never the provider cache, state, or tfvars)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.auto.tfvars
+terraform.tfvars
+crash.log
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+# Ignore the shared dist build artifacts but keep the committed OpenAPI spec.
+# (Re-include the dir, re-exclude its contents, then re-include the one file —
+# a file can't be re-included if its parent dir stays excluded.)
+!packages/shared/dist/
+packages/shared/dist/*
+!packages/shared/dist/openapi.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Runtime dumps
+*.rdb
+dump.rdb
+
+# Prisma
+prisma/migrations/*.sql
+!prisma/migrations/migration_lock.toml
+
+# Temporary files
+tmp/
+temp/
+

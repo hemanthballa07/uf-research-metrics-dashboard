@@ -1,0 +1,27 @@
+# Runs `prisma migrate deploy` before the app rolls out, so api replicas don't race on migrations.
+# Uses the same DATABASE_URL secret (RDS master / rds_superuser) → `CREATE EXTENSION vector` succeeds.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ufrm.fullname" . }}-migrate
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "ufrm.selectorLabels" (dict "component" "migrate" "root" .) | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: {{ include "ufrm.image" (dict "component" "api" "root" .) }}
+          command: ["pnpm", "--filter", "@uf-research-metrics-platform/db", "exec", "prisma", "migrate", "deploy"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.externalSecret.targetSecretName }}

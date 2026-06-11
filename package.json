@@ -1,0 +1,44 @@
+{
+  "name": "uf-research-metrics-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal web platform for university Office of Research to track grant activity, faculty productivity, and research metrics",
+  "scripts": {
+    "dev": "pnpm --parallel --filter './apps/*' --filter './packages/*' dev",
+    "build": "pnpm --recursive --filter './apps/*' build",
+    "test": "pnpm --recursive test",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "clean": "pnpm --recursive clean",
+    "db:migrate": "pnpm --filter @uf-research-metrics-platform/db db:migrate",
+    "db:seed": "pnpm --filter @uf-research-metrics-platform/db db:seed",
+    "db:seed:uf": "pnpm --filter @uf-research-metrics-platform/db db:seed:uf",
+    "db:studio": "pnpm --filter @uf-research-metrics-platform/db db:studio",
+    "embed:grants": "tsx scripts/embed-grants.ts",
+    "bench:seed-embeddings": "pnpm --filter @uf-research-metrics-platform/api exec tsx scripts/bench/seed-embeddings.ts",
+    "bench:e2e": "pnpm --filter @uf-research-metrics-platform/api exec tsx scripts/bench/e2e-ingest.ts",
+    "bench:read": "k6 run apps/api/scripts/bench/read-load.js",
+    "bench:stress": "k6 run apps/api/scripts/bench/stress-read.js",
+    "bench:reporting-week": "k6 run apps/api/scripts/bench/reporting-week.js",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "pnpm": "^10.28.2",
+    "prettier": "^3.1.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,210 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: uf-research-metrics-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-uf_research_metrics}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready checks if PostgreSQL is accepting connections
+      # This ensures the database is ready before dependent services start
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-uf_research_metrics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - uf-research-metrics-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: uf-research-metrics-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - uf-research-metrics-network
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: uf-research-metrics-redpanda
+    command:
+      - redpanda
+      - start
+      # Dual listeners: internal for in-compose services, external for host `pnpm dev`.
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --smp=1
+      - --mode=dev-container
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - uf-research-metrics-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: uf-research-metrics-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    networks:
+      - uf-research-metrics-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: uf-research-metrics-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-uf_research_metrics}?schema=public
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      API_PORT: ${API_PORT:-3001}
+      NODE_ENV: ${NODE_ENV:-development}
+      OTEL_TRACES_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      redpanda:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/packages/shared/node_modules
+    command: pnpm --filter api dev:traced
+    networks:
+      - uf-research-metrics-network
+
+  ingest-worker:
+    build:
+      context: .
+      dockerfile: apps/ingest-worker/Dockerfile
+    container_name: uf-research-metrics-ingest-worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-uf_research_metrics}?schema=public
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      WORKER_METRICS_PORT: 3003
+      NODE_ENV: ${NODE_ENV:-development}
+      OTEL_TRACES_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      EMBED_ON_INGEST: ${EMBED_ON_INGEST:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      redpanda:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    volumes:
+      - ./apps/ingest-worker:/app/apps/ingest-worker
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - /app/node_modules
+    command: pnpm --filter @uf-research-metrics-platform/ingest-worker dev:traced
+    networks:
+      - uf-research-metrics-network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: uf-research-metrics-web
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/shared/node_modules
+    command: pnpm --filter web dev
+    networks:
+      - uf-research-metrics-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: uf-research-metrics-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - ./recording.rules.yml:/etc/prometheus/recording.rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    networks:
+      - uf-research-metrics-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: uf-research-metrics-alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - uf-research-metrics-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: uf-research-metrics-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - uf-research-metrics-network
+
+volumes:
+  postgres_data:
+  grafana_data:
+
+networks:
+  uf-research-metrics-network:
+    driver: bridge
+

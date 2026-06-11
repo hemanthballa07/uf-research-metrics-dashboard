@@ -1,0 +1,133 @@
+# Alert rules for uf-research-metrics-platform.
+#
+# Two groups: the new SLO-driven burn-rate alerts (uf-research-metrics-slo)
+# and the legacy static-threshold alerts (uf-research-metrics-legacy), kept at
+# severity: info during a one-week transition so any operator-side silences /
+# dashboard references targeting the old names still resolve.
+#
+# Equivalence map (also documented in docs/RUNBOOK.md#slos-and-error-budget):
+#   HighErrorRate         -> AvailabilityBudgetBurnFast + AvailabilityBudgetBurnSlow
+#   HighLatencyP95        -> ReadLatencyP95Breach
+#   IngestErrorSpike      -> IngestSuccessBudgetBurnFast
+# APIDown stays unchanged.
+
+groups:
+  - name: uf-research-metrics-slo
+    interval: 30s
+    rules:
+      # 99.9% availability -> budget = 0.1% (~43m/month).
+      # Fast burn: 2% budget in 1h -> would exhaust budget in 50h -> page.
+      # Min-traffic guard (>= 0.1 req/s = 6/min in 1h) filters off-hours noise.
+      - alert: AvailabilityBudgetBurnFast
+        expr: |
+          (1 - sli:availability_ratio:rate5m) > (14.4 * 0.001)
+          and
+          (1 - sli:availability_ratio:rate1h) > (14.4 * 0.001)
+          and
+          sum(rate(http_requests_total[1h])) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Availability fast burn (2% of monthly budget in 1h)"
+          description: "Error budget burn rate >14.4x over both 5m and 1h windows."
+          runbook: "docs/RUNBOOK.md#slos-and-error-budget"
+
+      # Slow burn: 10% budget in 6h -> ticket-grade.
+      - alert: AvailabilityBudgetBurnSlow
+        expr: |
+          (1 - sli:availability_ratio:rate30m) > (6 * 0.001)
+          and
+          (1 - sli:availability_ratio:rate6h) > (6 * 0.001)
+          and
+          sum(rate(http_requests_total[6h])) > 0.05
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Availability slow burn (10% of monthly budget in 6h)"
+          runbook: "docs/RUNBOOK.md#slos-and-error-budget"
+
+      - alert: ReadLatencyP95Breach
+        expr: |
+          sli:read_p95_seconds:rate5m > 1.0
+          and
+          sum(rate(http_request_duration_seconds_count{route!~"/api/ingest/.*"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "Read-mix p95 latency > 1s for 5m"
+          description: "Current p95 = {{ printf \"%.2f\" $value }}s (target <= 1.0s)."
+          runbook: "docs/RUNBOOK.md#slos-and-error-budget"
+
+      # Ingest is bursty by design; guard at >= 0.01 batches/sec = 36/hr.
+      - alert: IngestSuccessBudgetBurnFast
+        expr: |
+          (1 - sli:ingest_success_ratio:rate30m) > (14.4 * 0.005)
+          and
+          (1 - sli:ingest_success_ratio:rate6h) > (14.4 * 0.005)
+          and
+          sum(rate(batches_processed_total[6h])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          slo: ingest_success
+        annotations:
+          summary: "Ingest success rate below 99.5% (fast burn)"
+          runbook: "docs/RUNBOOK.md#slos-and-error-budget"
+
+      # APIDown stays unchanged from the legacy ruleset (already correct).
+      - alert: APIDown
+        expr: up{job="uf-research-metrics-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API service unreachable"
+          description: "Prometheus cannot scrape the API /metrics endpoint."
+
+  # Legacy alerts demoted to severity: info during the one-week migration.
+  # Remove this group entirely once the new SLO alerts have one clean week.
+  - name: uf-research-metrics-legacy
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: info
+          superseded_by: "AvailabilityBudgetBurn{Fast,Slow}"
+        annotations:
+          summary: "(legacy) API error rate above 5%"
+          description: "Error rate is {{ printf \"%.1f\" $value }}% over the last 5 minutes. Migrating to burn-rate alerts; see RUNBOOK."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 2m
+        labels:
+          severity: info
+          superseded_by: "ReadLatencyP95Breach"
+        annotations:
+          summary: "(legacy) API p95 latency above 2s"
+          description: "p95 request latency is {{ printf \"%.2f\" $value }}s. Migrating to SLO-driven latency alert; see RUNBOOK."
+
+      - alert: IngestErrorSpike
+        expr: |
+          sum(rate(ingest_rows_processed_total{result="error"}[5m])) > 5
+        for: 1m
+        labels:
+          severity: info
+          superseded_by: "IngestSuccessBudgetBurnFast"
+        annotations:
+          summary: "(legacy) Ingestion error rate elevated"
+          description: "More than 5 ingest row errors per second over last 5 minutes."

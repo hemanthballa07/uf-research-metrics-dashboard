@@ -1,0 +1,10 @@
+# Dev/demo overlay: minimal replicas to fit a small node group.
+api:
+  replicas: 1
+web:
+  replicas: 1
+worker:
+  replicas: 1
+
+externalSecret:
+  remoteSecretName: uf-research-metrics/demo

@@ -1,0 +1,36 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  receiver: 'default'
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: 'critical'
+      continue: false
+    - matchers:
+        - severity = warning
+      receiver: 'default'
+
+receivers:
+  - name: 'default'
+    # Extend with Slack/email/PagerDuty in production
+  - name: 'critical'
+    # Critical alerts POST to a webhook (Slack/PagerDuty/incident bot).
+    # Set ALERTMANAGER_WEBHOOK_URL in the environment; Alertmanager expands
+    # ${VAR} when started with --config.expand-env. Until set, the placeholder
+    # documents the wiring without committing a real endpoint.
+    webhook_configs:
+      - url: '${ALERTMANAGER_WEBHOOK_URL}'
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ['alertname']

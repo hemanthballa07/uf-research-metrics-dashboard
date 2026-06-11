@@ -1,0 +1,467 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run linter
+        run: pnpm lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+
+      # tsc resolves workspace packages via their `types` export (-> dist/*.d.ts);
+      # build them so apps/web can find @uf-research-metrics-platform/{shared,sdk,...}.
+      - name: Build workspace packages
+        run: pnpm --recursive --filter "./packages/*" build
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db?schema=public
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret-for-ci
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+      
+      - name: Run database migrations
+        working-directory: packages/db
+        run: pnpm exec prisma migrate deploy
+      
+      - name: Verify database is ready
+        working-directory: packages/db
+        run: |
+          # Small delay to ensure migrations are fully applied
+          sleep 2
+          # Simple connection test using Prisma migrate status (non-destructive)
+          pnpm exec prisma migrate status || true
+      
+      - name: Run tests
+        run: pnpm test
+
+  integration:
+    name: Integration (Kafka round-trip)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db?schema=public
+      REDIS_URL: redis://localhost:6379
+      KAFKA_BROKERS: localhost:19092
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start Redpanda
+        run: |
+          docker run -d --name redpanda -p 19092:19092 redpandadata/redpanda:latest \
+            redpanda start --mode dev-container --smp 1 \
+            --kafka-addr external://0.0.0.0:19092 \
+            --advertise-kafka-addr external://localhost:19092
+          for i in $(seq 1 30); do nc -z localhost 19092 && break; sleep 1; done
+          docker exec redpanda rpk cluster health
+
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+
+      - name: Run database migrations
+        working-directory: packages/db
+        run: pnpm exec prisma migrate deploy
+
+      - name: Run Kafka round-trip integration test
+        run: pnpm --filter @uf-research-metrics-platform/ingest-worker test:integration
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+
+      - name: Build workspace packages
+        run: pnpm --recursive --filter "./packages/*" build
+
+      - name: Build API
+        working-directory: apps/api
+        run: pnpm build
+
+      - name: Build Web
+        working-directory: apps/web
+        run: pnpm build
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    timeout-minutes: 25
+    # Run in the official Playwright image: browsers are pre-baked, so the job never
+    # downloads or extracts Chromium — eliminating the deterministic extraction hang.
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      # Inside a job container, service containers are reachable by service name, not localhost.
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/e2e_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: test-secret-for-ci
+      NODE_ENV: test
+      PORT: 3001
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+
+      - name: Run database migrations
+        working-directory: packages/db
+        run: pnpm exec prisma migrate deploy
+
+      - name: Seed database
+        working-directory: packages/db
+        run: pnpm exec prisma db seed
+
+      - name: Build workspace packages
+        run: pnpm --recursive --filter "./packages/*" build
+
+      - name: Build API
+        working-directory: apps/api
+        run: pnpm build
+
+      - name: Build web
+        working-directory: apps/web
+        run: pnpm build
+
+      - name: Start API server
+        run: node apps/api/dist/index.js &
+
+      - name: Wait for API
+        run: curl --retry 20 --retry-connrefused --retry-delay 2 -sf http://localhost:3001/api/health
+
+      - name: Start web preview
+        run: pnpm --filter @uf-research-metrics-platform/web exec vite preview --port 3000 --host &
+
+      - name: Wait for web
+        run: curl --retry 15 --retry-connrefused --retry-delay 2 -sf http://localhost:3000
+
+      - name: Run E2E tests
+        working-directory: apps/web
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+      - name: Helm lint
+        run: helm lint infra/helm/uf-research-metrics
+      # values-prod.yaml: autoscaling on, networkPolicy on -> these resources must render.
+      - name: Render values-prod.yaml and assert key resources present
+        run: |
+          helm template release infra/helm/uf-research-metrics \
+            -f infra/helm/uf-research-metrics/values-prod.yaml > /tmp/rendered-prod.yaml
+          grep -q "kind: HorizontalPodAutoscaler" /tmp/rendered-prod.yaml
+          grep -q "kind: PodDisruptionBudget"     /tmp/rendered-prod.yaml
+          grep -q "kind: NetworkPolicy"           /tmp/rendered-prod.yaml
+          grep -q "kind: PrometheusRule"          /tmp/rendered-prod.yaml
+      # Default values.yaml: autoscaling off, networkPolicy off -> those gated
+      # resources must NOT render. Catches templating bugs that only emit when
+      # flags are off (e.g. unconditional resource bodies inside `{{- if ... }}`).
+      - name: Render default values.yaml and assert gated resources absent
+        run: |
+          helm template release infra/helm/uf-research-metrics > /tmp/rendered-default.yaml
+          ! grep -q "kind: HorizontalPodAutoscaler" /tmp/rendered-default.yaml
+          ! grep -q "kind: NetworkPolicy"           /tmp/rendered-default.yaml
+
+  load-test:
+    name: Load Test (manual)
+    runs-on: ubuntu-latest
+    # Manual only — load runs are heavy and the runner numbers are relative, not an
+    # SLA, so they must never gate a PR. Runs the read-path stress sweep
+    # (stress-read.js) as a "scripts stay green" smoke. Full ceiling sweeps and the
+    # reporting-week write-spike (which needs Redpanda + the ingest-worker) run locally.
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: load_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/load_db?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret-for-ci
+      NODE_ENV: test
+      PORT: 3001
+      # Raise the protective cap so the load tool isn't throttled by the 100/min global limit.
+      RATE_LIMIT_MAX: '100000'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        working-directory: packages/db
+        run: pnpm exec prisma generate
+
+      - name: Run database migrations
+        working-directory: packages/db
+        run: pnpm exec prisma migrate deploy
+
+      - name: Seed database
+        working-directory: packages/db
+        run: pnpm exec prisma db seed
+
+      - name: Build workspace packages
+        run: pnpm --recursive --filter "./packages/*" build
+
+      - name: Build API
+        working-directory: apps/api
+        run: pnpm build
+
+      - name: Start API server
+        run: node apps/api/dist/index.js &
+
+      - name: Wait for API
+        run: curl --retry 20 --retry-connrefused --retry-delay 2 -sf http://localhost:3001/api/health
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Read-path stress sweep (smoke profile)
+        env:
+          API_URL: http://localhost:3001
+          ADMIN_EMAIL: admin@ufl.edu
+          ADMIN_PASSWORD: changeme
+          LEVELS: '5,10,20'
+          STEP_SECONDS: '15'
+          # Smoke = prove scripts run + API stays error-free. Latency on a shared
+          # runner is not an SLA, so drop the per-level p95 thresholds (keep the
+          # http_req_failed error gate). k6 exits non-zero on any crossed threshold.
+          SOFT_LATENCY: '1'
+        run: k6 run apps/api/scripts/bench/stress-read.js --summary-export=k6-stress-summary.json
+
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-stress-summary
+          path: k6-stress-summary.json
+          retention-days: 14
+

@@ -1,0 +1,40 @@
+{
+  "name": "@uf-research-metrics-platform/ingest-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:traced": "tsx watch --import ./src/instrumentation.ts src/index.ts",
+    "build": "tsc",
+    "start": "node --import ./dist/instrumentation.js dist/index.js",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "lint": "eslint . --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@uf-research-metrics-platform/db": "workspace:*",
+    "@uf-research-metrics-platform/embeddings": "workspace:*",
+    "@uf-research-metrics-platform/events": "workspace:*",
+    "@uf-research-metrics-platform/shared": "workspace:*",
+    "@uf-research-metrics-platform/telemetry": "workspace:*",
+    "bullmq": "^5.76.10",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.10.1",
+    "pino": "^10.3.1",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.1.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1"
+  }
+}

@@ -1,0 +1,56 @@
+{{- if .Values.api.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ufrm.fullname" . }}-api
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ufrm.fullname" . }}-api
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300   # avoid thrash on burst-y traffic
+    scaleUp:
+      stabilizationWindowSeconds: 0     # respond fast to load
+{{- end }}
+{{- if .Values.worker.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ufrm.fullname" . }}-worker
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ufrm.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas }}
+  # CPU-based scaling is the v1 choice. The worker is mostly I/O-bound on
+  # Kafka consume + Postgres upsert, so CPU under-counts true load. A
+  # lag-based HPA (Kafka consumer-group lag via prometheus-adapter) is the
+  # right v2 — deferred to a separate workstream because it requires
+  # installing prometheus-adapter and writing a custom metric rule.
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600   # consumer rebalances are expensive; debounce harder
+    scaleUp:
+      stabilizationWindowSeconds: 30    # consumer-group rebalance takes ~10s; don't spam
+{{- end }}

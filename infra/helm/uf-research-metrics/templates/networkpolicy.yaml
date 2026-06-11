@@ -1,0 +1,150 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default-deny ingress + explicit allow rules for each workload.
+# Egress to Postgres (RDS) is port-only — see plan F11: the RDS endpoint is a
+# dynamic DNS name resolving to a VPC-private IP, and NetworkPolicy only matches
+# by pod/namespace selector or ipBlock CIDR. Port-only is a wider blast radius
+# (any IP on :5432) but avoids coupling the chart to Terraform output. Tighten
+# later via .Values.networkPolicy.databaseCidrBlocks if needed.
+#
+# IMPORTANT: AWS VPC CNI silently ignores NetworkPolicy resources unless
+# `enable_network_policy = true` is set on the EKS addon (VPC CNI v1.14+ +
+# K8s >= 1.25), or Calico/Cilium is installed alongside. Verify with
+# `kubectl describe pod -n kube-system aws-node-*` before relying on these.
+
+# ---- API: allow ingress from web pod + ALB; allow egress to Redis, Redpanda, Postgres ----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ufrm.fullname" . }}-api
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "api" "root" .) | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Web frontend (same namespace) -> api:3001
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "ufrm.selectorLabels" (dict "component" "web" "root" .) | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 3001 }
+    # ALB-managed traffic (AWS Load Balancer Controller) -> api:3001
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: TCP, port: 3001 }
+    # Prometheus (kube-prometheus-stack in `monitoring` namespace) -> /metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - { protocol: TCP, port: 3001 }
+  egress:
+    # DNS resolution (kube-dns)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # Redis (in-cluster service)
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: redis }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    # Redpanda (Kafka API in cluster)
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: redpanda }
+      ports:
+        - { protocol: TCP, port: 9092 }
+    # Postgres (RDS) — port-only egress; see header comment
+    - ports:
+        - { protocol: TCP, port: 5432 }
+    # Outbound HTTPS (AWS Secrets Manager via External Secrets, Anthropic/Voyage APIs)
+    - ports:
+        - { protocol: TCP, port: 443 }
+
+---
+# ---- Worker: same egress as api; ingress only from Prometheus scrape ----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ufrm.fullname" . }}-worker
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "ingest-worker" "root" .) | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Prometheus -> worker:3003/metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - { protocol: TCP, port: 3003 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: redis }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: redpanda }
+      ports:
+        - { protocol: TCP, port: 9092 }
+    - ports:
+        - { protocol: TCP, port: 5432 }
+    - ports:
+        - { protocol: TCP, port: 443 }
+
+---
+# ---- Web: allow ingress from ALB only; egress to api ----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ufrm.fullname" . }}-web
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "web" "root" .) | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: TCP, port: 80 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "ufrm.selectorLabels" (dict "component" "api" "root" .) | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 3001 }
+{{- end }}

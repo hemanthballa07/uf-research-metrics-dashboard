@@ -1,0 +1,85 @@
+name: Deploy (AWS/EKS)
+
+# terraform plan on PRs (read-only); apply + image build/push + helm only on manual dispatch
+# against the protected `production` Environment (reviewer approval). No auto-apply on merge.
+on:
+  pull_request:
+    branches: [main]
+    paths: ['infra/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Target environment
+        type: choice
+        options: [demo, prod]
+        default: demo
+
+permissions:
+  id-token: write   # GitHub OIDC → assume the AWS IAM role (no static keys)
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_DIR: infra/terraform
+
+jobs:
+  plan:
+    name: terraform plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: terraform init + plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -var aws_region=$AWS_REGION
+
+  deploy:
+    name: apply + build + helm
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production   # requires manual reviewer approval
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false \
+            -var env=${{ inputs.env }} -var aws_region=$AWS_REGION
+
+      - name: ECR login + build/push images
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          REGISTRY=$(terraform output -json ecr_repository_urls | jq -r '.api' | sed 's#/uf-research-metrics/api##')
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin "$REGISTRY"
+          TAG=${GITHUB_SHA::7}
+          docker build -f ../../apps/api/Dockerfile --target production -t "$REGISTRY/uf-research-metrics/api:$TAG" ../..
+          docker build -f ../../apps/ingest-worker/Dockerfile --target production -t "$REGISTRY/uf-research-metrics/ingest-worker:$TAG" ../..
+          docker build -f ../../apps/web/Dockerfile --target web-production --build-arg VITE_API_URL="" -t "$REGISTRY/uf-research-metrics/web:$TAG" ../..
+          docker push "$REGISTRY/uf-research-metrics/api:$TAG"
+          docker push "$REGISTRY/uf-research-metrics/ingest-worker:$TAG"
+          docker push "$REGISTRY/uf-research-metrics/web:$TAG"
+          echo "REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: helm upgrade
+        run: |
+          aws eks update-kubeconfig --name uf-research-metrics-${{ inputs.env }}-eks --region $AWS_REGION
+          helm upgrade --install ufrm infra/helm/uf-research-metrics \
+            -n uf-research-metrics --create-namespace \
+            -f infra/helm/uf-research-metrics/values-${{ inputs.env }}.yaml \
+            --set image.registry=$REGISTRY --set image.tag=$TAG

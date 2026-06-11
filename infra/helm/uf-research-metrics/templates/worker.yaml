@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ufrm.fullname" . }}-worker
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ufrm.selectorLabels" (dict "component" "ingest-worker" "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ufrm.selectorLabels" (dict "component" "ingest-worker" "root" .) | nindent 8 }}
+    spec:
+      containers:
+        - name: ingest-worker
+          image: {{ include "ufrm.image" (dict "component" "worker" "root" .) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: 3003
+          envFrom:
+            - configMapRef:
+                name: {{ include "ufrm.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.externalSecret.targetSecretName }}
+          readinessProbe:
+            httpGet: { path: /health, port: 3003 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ufrm.fullname" . }}-worker
+  labels:
+    {{- include "ufrm.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "ufrm.selectorLabels" (dict "component" "ingest-worker" "root" .) | nindent 4 }}
+  ports:
+    - name: metrics
+      port: 3003
+      targetPort: 3003

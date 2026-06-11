@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild
+  - prisma
+  # bullmq subdependency; ships prebuilt binaries (node-gyp-build), so this
+  # resolves a prebuild rather than compiling from source.
+  - msgpackr-extract
+  # OpenTelemetry OTLP exporter subdependency (protobuf runtime).
+  - protobufjs

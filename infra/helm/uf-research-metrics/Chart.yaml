@@ -1,0 +1,9 @@
+apiVersion: v2
+name: uf-research-metrics
+description: API, web, and ingest-worker for the UF Research Metrics platform on EKS.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+# Platform dependencies (redis, redpanda, kube-prometheus-stack, jaeger) are installed as
+# SEPARATE Helm releases (see infra/README.md + the Makefile) rather than bundled subcharts,
+# so this chart lints/templates standalone and the heavy observability CRDs stay decoupled.

@@ -75,6 +75,29 @@ docker compose exec api pnpm --filter api db:studio
 pnpm db:studio
 ```
 
+#### Applying the legacy partial-unique index to a large production table
+
+`prisma migrate deploy` runs `20260607184208_grant_legacy_partial_unique` as a
+plain (non-concurrent) `DROP INDEX` / `CREATE UNIQUE INDEX`, which takes an
+ACCESS EXCLUSIVE lock on `grants` for the build. That's fine against an
+empty/small table (CI, fresh installs — no action needed), but not against an
+already-large production `grants` table. For that case, run the concurrent
+equivalent by hand *before* deploying, then tell Prisma the migration is
+already done. Prisma can't run `CONCURRENTLY` itself — it always executes
+migrations (and `db execute --file`, for a multi-statement file) inside a
+transaction, and Postgres rejects `CONCURRENTLY` inside one — so this is two
+separate single-statement invocations, verified end-to-end against a local
+test DB (drop, create, resolve, then a normal deploy for the rest):
+
+```bash
+prisma db execute --file packages/db/scripts/concurrent-legacy-partial-unique-index-1-drop.sql --url "$DATABASE_URL"
+prisma db execute --file packages/db/scripts/concurrent-legacy-partial-unique-index-2-create.sql --url "$DATABASE_URL"
+
+prisma migrate resolve --applied 20260607184208_grant_legacy_partial_unique
+
+prisma migrate deploy   # applies everything else normally
+```
+
 ### Ingest Worker
 
 The ingest pipeline is asynchronous. `POST /api/ingest/grants` validates + batches the CSV and

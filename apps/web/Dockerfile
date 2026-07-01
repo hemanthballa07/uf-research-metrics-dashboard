@@ -1,14 +1,15 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/sdk/package.json ./packages/sdk/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -24,7 +25,7 @@ CMD ["pnpm", "--filter", "web", "dev", "--host"]
 
 # Production stage
 FROM base AS production
-WORKDIR /app/apps/web
+WORKDIR /app
 
 # API base URL baked into the SPA at build time. Empty ("") → same-origin relative /api,
 # served by the same ALB that fronts the web (see infra Ingress). Pass via
@@ -32,7 +33,11 @@ WORKDIR /app/apps/web
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
 
+# Build the SDK first — web imports types from it
+RUN pnpm --filter @uf-research-metrics-platform/sdk build
+
 # Build the application
+WORKDIR /app/apps/web
 RUN pnpm build
 
 # Use nginx to serve static files

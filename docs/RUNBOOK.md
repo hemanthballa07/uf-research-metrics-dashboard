@@ -408,12 +408,12 @@ fraction of failure we accept before paging.
 
 ### Defined SLOs
 
-| SLI | Target | Window | Source |
-|---|---|---|---|
-| API availability (non-5xx, all endpoints) | **99.9%** | rolling 28d | k6 daily profile: 0.00% failure over 65s/126 req/s |
+| SLI                                                                      | Target | Window | Source |
+|--------------------------------------------------------------------------|-----------------|---|---|
+| API availability (non-5xx, all endpoints)                                | **99.9%** | rolling 28d | k6 daily profile: 0.00% failure over 65s/126 req/s |
 | Read-mix p95 latency (`/api/metrics/*`, leaderboard, `/similar`, search) | **≤ 1.0s** | rolling 5m | k6 overall p95 = 778 ms with 800 ms threshold |
-| Ingest job success (batches reach `completed`, not DLQ) | **99.5%** | rolling 7d | E2E stress: 1 DLQ in 80K rows (= 0.00125%) by design |
-| Ingest end-to-end latency (upload → `completed`) p95 | **≤ 8s** | for jobs ≤ 5K rows | E2E: p95 4.4s @ 20 concurrent uploads of 4K rows |
+| Ingest job success (batches reach `completed`, not DLQ)                  | **99.5%** | rolling 7d | E2E stress: 1 DLQ in 80K rows (= 0.00125%) by design |
+| Ingest end-to-end latency (upload → `completed`) p95                     | **≤ 8s** | for jobs ≤ 5K rows | E2E: p95 4.4s @ 20 concurrent uploads of 4K rows |
 
 Recording rules in `recording.rules.yml` compute the SLI series:
 `sli:availability_ratio:rate{5m,30m,1h,6h}`,

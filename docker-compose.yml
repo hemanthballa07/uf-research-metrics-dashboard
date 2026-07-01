@@ -139,11 +139,12 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      target: development
     container_name: uf-research-metrics-web
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_API_URL: ${VITE_API_URL:-}
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3030}:3000"
     depends_on:
       - api
     volumes:

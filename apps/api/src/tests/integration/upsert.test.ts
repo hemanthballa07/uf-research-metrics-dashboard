@@ -142,6 +142,27 @@ describe('upsertBatch — idempotent two-phase upsert', () => {
     expect(count).toBe(2);
   });
 
+  it('within one batch, a legacy row and a numbered row sharing title+PI collapse into one grant', async () => {
+    // Same underlying grant described twice in one CSV export: one line hasn't
+    // picked up the Award ID yet, the other already has it. Both are brand new
+    // to the DB in this call, so the legacy-adoption UPDATE (which only fires
+    // cross-batch, after the legacy row already exists) can't save us here —
+    // the within-batch partition must not let these race into two rows.
+    const [a] = buildRows(1);
+    const sharedTitle = `${tag} crosspath ${a.title}`;
+    const legacyRow = { ...a, grant_number: undefined, title: sharedTitle };
+    const numberedRow = { ...a, grant_number: `${a.grant_number}-XPATH`, title: sharedTitle };
+
+    const res = await upsertBatch([legacyRow, numberedRow]);
+
+    const count = await prisma.grant.count({ where: { title: sharedTitle } });
+    expect(count).toBe(1); // one grant, not a numbered + a duplicate legacy row
+    expect(res.inserted).toBe(1);
+
+    const grant = await prisma.grant.findFirst({ where: { title: sharedTitle } });
+    expect(grant?.grantNumber).toBe(numberedRow.grant_number);
+  });
+
   it('updates piId when the same grantNumber re-ingests with a different PI', async () => {
     const base = buildRows(1)[0];
     const gn = `${tag}-PICHANGE`;

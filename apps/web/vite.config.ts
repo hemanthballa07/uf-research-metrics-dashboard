@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Allow access from outside container
+    proxy: {
+      '/api': {
+        target: 'http://api:3001',
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     environment: 'jsdom',

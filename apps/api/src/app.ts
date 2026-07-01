@@ -11,6 +11,14 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import routes from './routes/index.js';
 
+// Origins allowed to call the API cross-origin. Defaults cover local dev
+// (Vite on 3000, Docker Compose web on 3030); production must set
+// CORS_ALLOWED_ORIGINS explicitly (comma-separated) to the deployed web origin(s).
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:3000,http://localhost:3030')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 // Limits are env-overridable (defaults unchanged) so load tests / high-volume
 // environments can tune them without code changes.
 const globalLimiter = rateLimit({
@@ -54,9 +62,13 @@ export function createApp(opts: { validateResponses?: boolean } = {}): express.A
     }),
   );
 
-  // CORS
+  // CORS — only the configured web origin(s) may call this API, not '*'.
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Vary', 'Origin');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') {

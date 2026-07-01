@@ -130,10 +130,10 @@ in memory simultaneously before any Kafka produce call.
 
 Measured against the live running stack (API + ingest-worker + Redpanda + Postgres):
 
-| Rows | CSV size | RSS baseline | RSS peak | RSS delta | Job result |
-|---|---|---|---|---|---|
-| 1,500 (3 batches) | ~0.14 MB | ~54 MB | n/a | — | completed, +1500 DB rows |
-| 50,000 (100 batches) | 7.0 MB | ~54 MB | ~129 MB | **75 MB** | completed, +50000 DB rows |
+| Rows                 | CSV size | RSS baseline | RSS peak | RSS delta | Job result                |
+|----------------------|----------|--------------|----------|-----------|---------------------------|
+| 1,500 (3 batches)    | ~0.14 MB | ~54 MB       | n/a      | —         | completed, +1500 DB rows  |
+| 50,000 (100 batches) | 7.0 MB   | ~54 MB       | ~129 MB  | **75 MB** | completed, +50000 DB rows |
 
 Delta for 50K rows is **~10× the CSV file size** — but crucially, this **does not scale with
 file size**. A 7 MB CSV produces a 75 MB delta; a 250K-row (~27 MB) CSV under the old O(file)

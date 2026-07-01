@@ -57,15 +57,3 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     next();
   })().catch(next);
 }
-
-export function requireRole(...roles: string[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      res.status(403).json({
-        error: { message: 'Insufficient permissions', code: 'FORBIDDEN', statusCode: 403 },
-      });
-      return;
-    }
-    next();
-  };
-}

@@ -185,6 +185,12 @@ export async function upsertBatch(
       if (g.grantNumber !== null) byNumber.set(g.grantNumber, g);
       else byTitlePi.set(`${g.title}::${g.piId}`, g);
     }
+    // Cross-path filter: if this same batch also carries a numbered row for the
+    // same (title, piId), that numbered row's own legacy-adoption UPDATE (below)
+    // is the one that should own this grant — drop the legacy entry here so the
+    // two paths don't race into two rows for what is really one grant.
+    for (const g of byNumber.values()) byTitlePi.delete(`${g.title}::${g.piId}`);
+
     const withNumber = Array.from(byNumber.values());
     const legacy = Array.from(byTitlePi.values());
 
